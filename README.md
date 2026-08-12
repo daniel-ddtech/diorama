@@ -99,6 +99,36 @@ First output doubles as the replacement landing-page demo video for
 hookcollective (`public/videos/extension-scrape-demo.mp4` + poster; also used on
 `src/app/welcome/page.tsx`).
 
+## Facts verified by the phase-1 spike (2026-08-12, spike/run.mjs — ALL GATES PASSED)
+
+- `--headless=new --load-extension` runs the MV3 extension fully: SW alive,
+  popup renders, **real scrape completes** ("Scraped 82 of 93 comments" off the
+  live magnesium thread) in ~1.5s.
+- **The tabs-query shim works.** Popup opened as a CDP target with
+  `Page.addScriptToEvaluateOnNewDocument` sees the stage tab as active; Scrape
+  button enables; `chrome.scripting.executeScript` runs unmodified.
+- **`HeadlessExperimental.beginFrame` no longer exists** in headless=new (148).
+  Engine capture = screenshot/screencast loop (+ virtual time for determinism
+  later). PLAN's fallback is now the main path.
+- **Component-extension trap:** Chrome ships its own chrome-extension:// service
+  workers (e.g. thunk.js). Select the SW by `getManifest().name`, never "first
+  extension target".
+- **Without the `tabs` permission, `tab.url` is hidden** from `tabs.query`.
+  Resolve the stage tabId by probing tabs with `executeScript` (succeeds only
+  where host permissions exist) — no manifest patching needed when the
+  extension already declares host permissions (Comment Scraper declares
+  `https://*.reddit.com/*`; the activeTab concern from the design session was
+  moot).
+- **Completion detection must be scoped**: loose word-matching false-positived
+  on "export" in the popup's own pricing copy. Wait for the working state
+  ("Scraping comments…") to appear then clear.
+- Composite v0 (drawn chrome frame + stage + popup via ffmpeg overlay) looks
+  right: `spike/out/spike-demo.mp4` + `poster.jpg`, 2560×1800.
+- Spike-visible polish items for the real compositor: log into Reddit or hide
+  the logged-out sidebar/promoted posts (profile seeding), favicon in the drawn
+  tab, popup shadow/rounded corners, beat-paced timing (scrape is fast; the
+  demo needs holds and scrolls).
+
 ## Facts verified during design (2026-08-12)
 
 - Comment Scraper popup renders fine as a plain page (600×600), drivable DOM.

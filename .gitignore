@@ -1,0 +1,5 @@
+spike/tmp-ext/
+spike/out/
+spike/profile*/
+spike/tmp-ext-icon.png
+spike/debug*.mjs
