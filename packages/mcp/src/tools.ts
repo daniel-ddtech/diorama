@@ -10,13 +10,13 @@ import {
   loadBeatSheet,
   parseBeatSheet,
   requireSelector,
-} from "@diorama/beats";
+} from "@adlicio/diorama-beats";
 import {
   Engine,
   type StageTarget,
   type ViewportOptions,
-} from "@diorama/engine";
-import { recordDemo, runDoctorChecks } from "diorama";
+} from "@adlicio/diorama-engine";
+import { recordDemo, runDoctorChecks } from "@adlicio/diorama";
 
 import type { ToolDefinition, ToolRegistry } from "./server.js";
 

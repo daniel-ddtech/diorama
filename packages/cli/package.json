@@ -1,5 +1,5 @@
 {
-  "name": "diorama",
+  "name": "@adlicio/diorama",
   "version": "0.1.0",
   "type": "module",
   "bin": {
@@ -18,10 +18,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/beats": "0.1.0",
-    "@diorama/compositor": "0.1.0",
-    "@diorama/engine": "0.1.0"
+    "@adlicio/diorama-beats": "0.1.0",
+    "@adlicio/diorama-compositor": "0.1.0",
+    "@adlicio/diorama-engine": "0.1.0"
   },
-  "license": "UNLICENSED",
-  "private": true
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniel-ddtech/diorama.git"
+  }
 }

@@ -31,7 +31,7 @@ describe("parseBeatSheet", () => {
     expect(sheet.viewport.scale).toBe(2);
     expect(sheet.extension.popupPath).toBe("popup.html");
     expect(sheet.extension.popup).toEqual({ width: 600, height: 600 });
-    expect(sheet.output).toEqual({ fps: 30, holdTailMs: 2_000 });
+    expect(sheet.output).toEqual({ fps: 30, holdTailMs: 2_000, endCard: true });
     expect(sheet.steps[0]).toMatchObject({
       verb: "wait",
       target: "page",

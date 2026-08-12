@@ -1,4 +1,4 @@
-import type { CdpClient } from "@diorama/engine";
+import type { CdpClient } from "@adlicio/diorama-engine";
 
 export interface ResolvedSelector {
   found: boolean;

@@ -1,7 +1,6 @@
 {
-  "name": "@diorama/mcp",
+  "name": "@adlicio/diorama-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
     "diorama-mcp": "./dist/main.js"
@@ -19,10 +18,14 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/beats": "0.1.0",
-    "@diorama/compositor": "0.1.0",
-    "@diorama/engine": "0.1.0",
-    "diorama": "0.1.0"
+    "@adlicio/diorama-beats": "0.1.0",
+    "@adlicio/diorama-compositor": "0.1.0",
+    "@adlicio/diorama-engine": "0.1.0",
+    "@adlicio/diorama": "0.1.0"
   },
-  "license": "UNLICENSED"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniel-ddtech/diorama.git"
+  }
 }

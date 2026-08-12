@@ -2,7 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-import { resolveChromeBinary } from "@diorama/engine";
+import { resolveChromeBinary } from "@adlicio/diorama-engine";
 
 export interface DoctorCheck {
   name: "chrome" | "ffmpeg" | "ffprobe" | "node";

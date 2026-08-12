@@ -125,6 +125,7 @@ export const beatSheetSchema = z.object({
   output: z.object({
     fps: positiveInteger.default(30),
     holdTailMs: duration.default(2_000),
+    endCard: z.boolean().default(true),
   }).default({}),
   steps: z.array(beatStepSchema),
 });

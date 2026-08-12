@@ -1,7 +1,7 @@
-# Diorama — full build plan
+# Diorama, full build plan
 
 Goal: **v1.0 = "an agent (or human) runs `diorama record demo.yaml` and gets a
-polished, frame-perfect demo video of a Chrome extension — reproducibly, on any
+polished, frame-perfect demo video of a Chrome extension, reproducibly, on any
 machine, with no screen-recording permissions."**
 
 Definition of done for v1.0 (all four, no exceptions):
@@ -18,7 +18,7 @@ Definition of done for v1.0 (all four, no exceptions):
    unassisted.
 
 Out of scope for v1.0 (explicitly): Mac SwiftUI shell (post-v1 polish layer),
-Windows/Linux support promises (should mostly work — headless CDP — but not
+Windows/Linux support promises (should mostly work, headless CDP, but not
 verified), Web Store upload automation, captions/voiceover, side-panel and
 DevTools-panel surfaces (architecture supports them; ship popups + content
 scripts first).
@@ -41,13 +41,13 @@ scripts first).
 - **Raw CDP** (chrome-remote-interface or hand-rolled ws client), NOT
   playwright/puppeteer: we need `HeadlessExperimental.beginFrame`, screencast
   control, and `Page.addScriptToEvaluateOnNewDocument` on
-  `chrome-extension://` targets — and no framework baggage in a product.
+  `chrome-extension://` targets, and no framework baggage in a product.
 - **Engine browser:** Chrome for Testing, pinned version per project, launched
   `--headless=new --load-extension=<path> --remote-debugging-port=0`.
 - **Capture:** BeginFrame-driven (advance virtual clock → render → capture) for
   frame-perfect 60fps of BOTH targets (stage page + popup target), falling back
   to `Page.startScreencast` in live/headful mode.
-- **Composite v1:** ffmpeg — overlay popup frames onto stage frames inside a
+- **Composite v1:** ffmpeg, overlay popup frames onto stage frames inside a
   pre-rendered browser-frame PNG (from `frames/` HTML via a capture pass),
   synthetic cursor drawn as an overlay track from the executor's event log.
   (v2 idea, parked: an HTML compositor page rendering the whole scene live.)
@@ -67,7 +67,7 @@ scripts first).
 version: 1
 title: comment-scraper-reddit
 viewport: { width: 1280, height: 800, scale: 2 }
-frame: { theme: dark, url: "reddit.com/r/sleep — magnesium…", extensionIcon: ./assets/icon128.png }
+frame: { theme: dark, url: "reddit.com/r/sleep, magnesium…", extensionIcon: ./assets/icon128.png }
 extension: { path: ~/Developer/RedditCommentScraper, seedStorage: ./secrets/storage.json }
 output: { fps: 60, format: mp4, poster: 2.5s, profiles: [web, cws-1280x800] }
 steps:
@@ -89,7 +89,7 @@ camera, hold, mark` (named beat for poster/chapters). Every verb accepts
 ## MCP tool surface (v1)
 
 `launch_session, close_session, navigate, click, type, scroll, open_popup,
-run_beats (path|inline), record_start, record_stop, export, doctor` — thin
+run_beats (path|inline), record_start, record_stop, export, doctor`, thin
 wrappers over the same core the CLI uses; returns file paths + structured
 status. Ship as `diorama mcp` (stdio).
 
@@ -132,7 +132,7 @@ Windows/Linux verification.
 ## Known risks, with mitigations
 
 - **BeginFrame + extensions in headless=new**: least-proven combination
-  (spike exists to prove it). Fallback: screencast capture at fixed fps —
+  (spike exists to prove it). Fallback: screencast capture at fixed fps -
   loses frame-perfection, keeps everything else.
 - **Popup pixel fidelity**: popup-as-target renders at our chosen size; real
   popups size to content ≤800x600. Mitigation: measure content size after

@@ -1,7 +1,6 @@
 {
-  "name": "@diorama/compositor",
+  "name": "@adlicio/diorama-compositor",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -16,7 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/engine": "0.1.0"
+    "@adlicio/diorama-engine": "0.1.0"
   },
-  "license": "UNLICENSED"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniel-ddtech/diorama.git"
+  }
 }

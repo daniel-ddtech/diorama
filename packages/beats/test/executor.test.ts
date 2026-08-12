@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { Engine } from "@diorama/engine";
+import { Engine } from "@adlicio/diorama-engine";
 import { describe, expect, it } from "vitest";
 
 import { runBeats } from "../src/executor.js";

@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
 
-import type { Engine, ExtensionTarget, StageTarget } from "@diorama/engine";
+import type { Engine, ExtensionTarget, StageTarget } from "@adlicio/diorama-engine";
 
 import {
   type BeatSheet,

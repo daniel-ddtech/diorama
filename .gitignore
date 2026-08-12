@@ -5,4 +5,4 @@ spike/tmp-ext-icon.png
 spike/debug*.mjs
 node_modules/
 packages/*/dist/
-examples/*/out/
+examples/*/out*/

@@ -6,7 +6,7 @@ extension's real popup, and composites frame-perfect demo videos from beat sheet
 that an AI agent (or a human) writes and re-runs on every release.
 
 **One-line pitch:** your agent produces a polished, reproducible demo video of
-your extension — and re-records it in CI whenever the UI changes.
+your extension, and re-records it in CI whenever the UI changes.
 
 ## Why this doesn't already exist
 
@@ -33,7 +33,7 @@ browser frame (tab bar, omnibox, toolbar icon) and composites:
       + synthetic smooth cursor (every event's coords are machine-known)
     → frame-perfect mp4 + poster frames
 
-### The popup shim — the key unlock
+### The popup shim, the key unlock
 
 The extension's real `popup.html` is opened as a plain CDP target in the same
 profile: same service worker, same storage, same plan/auth state, genuinely the
@@ -42,23 +42,23 @@ extension's code. Its only defect as a target is that
 instead of the stage tab. Diorama injects a tiny shim
 (`Page.addScriptToEvaluateOnNewDocument` on `chrome-extension://` targets) that
 rewrites active-tab resolution to the stage tab. Works for ANY extension, zero
-modification. Everything else runs unmodified —
+modification. Everything else runs unmodified -
 `chrome.scripting.executeScript({target:{tabId}})` takes an explicit tab id and
 doesn't care about focus. Content-script overlay extensions need no shim at all
 (their UI lives in the page).
 
 ### What the architecture buys
 
-- **No macOS screen-recording permission** — no screen is recorded; frames come
+- **No macOS screen-recording permission**, no screen is recorded; frames come
   out of CDP.
-- **No focus/blur fragility** — nothing depends on OS window focus (real popups
+- **No focus/blur fragility**, nothing depends on OS window focus (real popups
   close on blur; we have no real popup window).
-- **Frame-perfect 60fps** — headless BeginFrame mode pulls frames: advance
+- **Frame-perfect 60fps**, headless BeginFrame mode pulls frames: advance
   virtual clock → render → capture. No dropped frames ever. (The Remotion trick
   applied to live browser sessions.)
-- **Runs in CI** — the engine is Node+CDP, headless. "Re-record the demo" is a
+- **Runs in CI**, the engine is Node+CDP, headless. "Re-record the demo" is a
   CI job on every release.
-- **Brand-clean output** — the browser frame is ours: no bookmark clutter, no
+- **Brand-clean output**, the browser frame is ours: no bookmark clutter, no
   profile avatar, retina at any scale, light/dark variants, not Chrome's trade
   dress.
 
@@ -70,17 +70,17 @@ as an escape hatch for forensically authentic captures.
 
 ## Components
 
-1. **Engine/session manager** — launch Chrome for Testing with extension +
+1. **Engine/session manager**, launch Chrome for Testing with extension +
    per-project profile (auth/plan state seeded via `chrome.storage`), CDP port.
-2. **Driver** — CDP client executing beat sheets: navigate, click, wait,
+2. **Driver**, CDP client executing beat sheets: navigate, click, wait,
    open-popup(shimmed), camera hints.
-3. **Compositor/renderer** — BeginFrame capture of stage + popup targets,
+3. **Compositor/renderer**, BeginFrame capture of stage + popup targets,
    HTML/canvas-rendered browser frame, synthetic cursor, ffmpeg encode to web
    profiles + poster frame.
-4. **Agent surface** — local MCP server: `launch_session`, `navigate`, `click`,
+4. **Agent surface**, local MCP server: `launch_session`, `navigate`, `click`,
    `open_popup`, `start/stop_recording`, `mark_beat`, `export`. Beat sheet
    (YAML) lives in the extension's own repo.
-5. **Mac app (later)** — SwiftUI shell: live composite preview, beat-sheet
+5. **Mac app (later)**, SwiftUI shell: live composite preview, beat-sheet
    editing, one-click export. Polish layer, not load-bearing.
 
 ## MVP spike (phase 1)
@@ -99,7 +99,7 @@ First output doubles as the replacement landing-page demo video for
 hookcollective (`public/videos/extension-scrape-demo.mp4` + poster; also used on
 `src/app/welcome/page.tsx`).
 
-## Facts verified by the phase-1 spike (2026-08-12, spike/run.mjs — ALL GATES PASSED)
+## Facts verified by the phase-1 spike (2026-08-12, spike/run.mjs, ALL GATES PASSED)
 
 - `--headless=new --load-extension` runs the MV3 extension fully: SW alive,
   popup renders, **real scrape completes** ("Scraped 82 of 93 comments" off the
@@ -115,7 +115,7 @@ hookcollective (`public/videos/extension-scrape-demo.mp4` + poster; also used on
   extension target".
 - **Without the `tabs` permission, `tab.url` is hidden** from `tabs.query`.
   Resolve the stage tabId by probing tabs with `executeScript` (succeeds only
-  where host permissions exist) — no manifest patching needed when the
+  where host permissions exist), no manifest patching needed when the
   extension already declares host permissions (Comment Scraper declares
   `https://*.reddit.com/*`; the activeTab concern from the design session was
   moot).
@@ -132,14 +132,14 @@ hookcollective (`public/videos/extension-scrape-demo.mp4` + poster; also used on
 ## Facts verified during design (2026-08-12)
 
 - Comment Scraper popup renders fine as a plain page (600×600), drivable DOM.
-- Scrape button correctly disables when active tab isn't a supported page —
+- Scrape button correctly disables when active tab isn't a supported page -
   this is the exact behavior the shim fixes.
 - Extension loads clean in Playwright persistent context (id
   `gfmafjkhloigpbkibadllpabodmjppmc` in test profile).
 - Auth lives in `chrome.storage.local` keys `user` + `authToken`
-  (`js/auth-session.js`) — seedable, needs a real token to show ALL ACCESS.
+  (`js/auth-session.js`), seedable, needs a real token to show ALL ACCESS.
 - Active-tab resolution: `js/scraper.js:125`, `popup.js:325`.
-- Chrome for Testing here: 148.0.7778.96 (openPopup min is 127 — version was
+- Chrome for Testing here: 148.0.7778.96 (openPopup min is 127, version was
   never the problem; focus gating is).
 
 ## Name

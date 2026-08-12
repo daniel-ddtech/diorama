@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 
-import { loadBeatSheet, runBeats, writeEventLog } from "@diorama/beats";
+import { loadBeatSheet, runBeats, writeEventLog } from "@adlicio/diorama-beats";
 import {
   renderDemo,
   type RenderDemoResult,
-} from "@diorama/compositor";
-import { Engine, type CaptureLoop } from "@diorama/engine";
+} from "@adlicio/diorama-compositor";
+import { Engine, type CaptureLoop } from "@adlicio/diorama-engine";
 
 export interface RecordCommandOptions {
   log?: (message: string) => void;
@@ -20,6 +20,8 @@ export interface RecordDemoOptions {
   outDir?: string;
   fps?: number;
   keepRun?: boolean;
+  /** Override the sheet's output.endCard (e.g. --no-end-card). */
+  endCard?: boolean;
 }
 
 export interface RecordDemoResult extends RenderDemoResult {
@@ -158,6 +160,7 @@ export async function recordDemo(
       outPath,
       posterPath,
       fps,
+      endCard: options.endCard ?? sheet.output.endCard,
     });
   } finally {
     if (loop && !loopStopped) {
@@ -197,6 +200,7 @@ export async function recordCommand(
       out: { type: "string" },
       fps: { type: "string" },
       "keep-run": { type: "boolean", default: false },
+      "no-end-card": { type: "boolean", default: false },
     },
   });
   if (positionals.length !== 1) {
@@ -212,6 +216,7 @@ export async function recordCommand(
     ...(values.out === undefined ? {} : { outDir: values.out }),
     fps,
     keepRun: values["keep-run"],
+    ...(values["no-end-card"] ? { endCard: false } : {}),
   });
   const log = options.log ?? console.log;
   log(`mp4: ${rendered.mp4Path}`);

@@ -2,14 +2,17 @@
 # The same dataset the hookcollective landing page's MCP mockup shows.
 version: 1
 title: Reddit Comment Scraper
-# 1280x860 stage + 100px drawn toolbar = 1280x960 output — exactly the 4:3
+# 1280x860 stage + 100px drawn toolbar = 1280x960 output, exactly the 4:3
 # box the hookcollective ProductShowcase clips this video into.
 viewport:
   width: 1280
   height: 860
   scale: 2
 extension:
-  path: /Users/daniel/Developer/Apps/Diorama/spike/tmp-ext
+  # Point this at your own unpacked extension directory. This example was
+  # recorded against the Reddit Comment Scraper (chrome.google.com/webstore ->
+  # "Reddit Comment Scraper by Adlicio"); any MV3 extension with a popup works.
+  path: ../../spike/tmp-ext
   popup:
     width: 600
     height: 600

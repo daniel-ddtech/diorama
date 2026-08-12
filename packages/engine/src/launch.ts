@@ -1,7 +1,7 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
-
-export const DEFAULT_CHROME_BINARY = "/Users/daniel/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 
 export interface LaunchChromeOptions {
   binary?: string;
@@ -17,8 +17,40 @@ export interface LaunchedChrome {
   kill(): void;
 }
 
+/** Newest Chromium in the Playwright browser cache, if one is installed. */
+function findPlaywrightChromium(): string | undefined {
+  const cacheRoots = [
+    join(homedir(), "Library", "Caches", "ms-playwright"),
+    join(homedir(), ".cache", "ms-playwright"),
+  ];
+  for (const root of cacheRoots) {
+    if (!existsSync(root)) continue;
+    const builds = readdirSync(root)
+      .filter((name) => name.startsWith("chromium-"))
+      .sort()
+      .reverse();
+    for (const build of builds) {
+      const candidates = [
+        join(root, build, "chrome-mac-arm64", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+        join(root, build, "chrome-mac", "Google Chrome for Testing.app", "Contents", "MacOS", "Google Chrome for Testing"),
+        join(root, build, "chrome-linux", "chrome"),
+      ];
+      const hit = candidates.find((candidate) => existsSync(candidate));
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
+
 export function resolveChromeBinary(binary?: string): string {
-  return binary ?? process.env.DIORAMA_CHROME ?? DEFAULT_CHROME_BINARY;
+  const resolved = binary ?? process.env.DIORAMA_CHROME ?? findPlaywrightChromium();
+  if (!resolved) {
+    throw new Error(
+      "No Chrome binary found. Set DIORAMA_CHROME to a Chrome for Testing binary, "
+      + "or install one with: npx playwright install chromium",
+    );
+  }
+  return resolved;
 }
 
 export function buildArgs({

@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { renderCursorPng, renderFrameChrome } from "./assets.js";
+import { renderCursorPng, renderEndCard, renderFrameChrome } from "./assets.js";
 import {
   concatFileFor,
   cursorPath,
@@ -49,6 +49,9 @@ export interface RenderDemoOptions {
   outPath: string;
   posterPath: string;
   fps?: number;
+  /** Append the "Recorded with diorama" card (1.6s). Callers decide; the CLI
+   * defaults it on via the beat sheet's output.endCard. */
+  endCard?: boolean;
 }
 
 export interface RenderDemoResult {
@@ -271,5 +274,29 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     posterPath,
   ], "ffmpeg poster extraction");
 
-  return { mp4Path, posterPath, durationMs };
+  let finalDurationMs = durationMs;
+  if (options.endCard) {
+    const cardMs = 1_600;
+    const cardPng = await renderEndCard(viewport.width, outputCssHeight, viewport.scale);
+    const cardPath = join(runDir, "endcard.png");
+    const withCardPath = join(runDir, "with-endcard.mp4");
+    await writeFile(cardPath, cardPng);
+    await runBinary(ffmpeg, [
+      "-y",
+      "-i", mp4Path,
+      "-loop", "1", "-t", String(cardMs / 1_000), "-i", cardPath,
+      "-filter_complex",
+      `[1:v]format=yuv420p,fps=${fps},fade=in:st=0:d=0.3,scale=${outputWidth}:${outputHeight}[card];[0:v][card]concat=n=2:v=1:a=0[out]`,
+      "-map", "[out]",
+      "-an",
+      "-c:v", "libx264",
+      "-pix_fmt", "yuv420p",
+      "-movflags", "+faststart",
+      withCardPath,
+    ], "ffmpeg end card");
+    await copyFile(withCardPath, mp4Path);
+    finalDurationMs += cardMs;
+  }
+
+  return { mp4Path, posterPath, durationMs: finalDurationMs };
 }

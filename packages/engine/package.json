@@ -1,7 +1,6 @@
 {
-  "name": "@diorama/engine",
+  "name": "@adlicio/diorama-engine",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -15,5 +14,9 @@
     "build": "tsc -b",
     "test": "vitest run"
   },
-  "license": "UNLICENSED"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniel-ddtech/diorama.git"
+  }
 }

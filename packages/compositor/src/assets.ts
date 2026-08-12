@@ -6,7 +6,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { TOOLBAR_HEIGHT } from "./plan.js";
 
-const DEFAULT_CHROME_BINARY = "/Users/daniel/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 const FRAMES_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
   "../../../frames",
@@ -22,9 +21,8 @@ export interface RenderFrameChromeOptions {
   scale: number;
 }
 
-export function resolveChromeBinary(): string {
-  return process.env.DIORAMA_CHROME ?? DEFAULT_CHROME_BINARY;
-}
+export { resolveChromeBinary } from "@adlicio/diorama-engine";
+import { resolveChromeBinary } from "@adlicio/diorama-engine";
 
 function escapeHtml(value: string): string {
   return value
@@ -49,7 +47,7 @@ async function screenshotWithChrome(
   // One-shot --screenshot mode hangs indefinitely when --user-data-dir is
   // passed (this Chrome build boots GCM sync services against the profile and
   // never exits), and silently produces nothing for data: URLs. So: file://
-  // URLs only, and no profile flag — verified 2026-08-12 on CfT 148.
+  // URLs only, and no profile flag, verified 2026-08-12 on CfT 148.
   const args = [
     "--headless=new",
     "--no-first-run",
@@ -131,6 +129,18 @@ export async function renderFrameChrome(
     options.height,
     options.scale,
   );
+}
+
+export async function renderEndCard(
+  width: number,
+  height: number,
+  scale: number,
+): Promise<Buffer> {
+  const template = await readFile(join(FRAMES_DIR, "endcard.html"), "utf8");
+  const html = template
+    .replaceAll("{{WIDTH}}", String(width))
+    .replaceAll("{{HEIGHT}}", String(height));
+  return renderHtmlScreenshot(html, width, height, scale);
 }
 
 export async function renderCursorPng(scale: number): Promise<Buffer> {
