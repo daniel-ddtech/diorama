@@ -1,0 +1,23 @@
+{
+  "name": "@diorama/beats",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@diorama/engine": "0.0.0",
+    "yaml": "^2.0.0",
+    "zod": "^3.0.0"
+  }
+}
