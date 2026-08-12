@@ -1,148 +1,143 @@
 # Diorama
 
-Agent-operable demo studio for Chrome extensions. Real Chrome runs headless as a
-render engine; Diorama draws its own browser chrome around the live page and the
-extension's real popup, and composites frame-perfect demo videos from beat sheets
-that an AI agent (or a human) writes and re-runs on every release.
+Reproducible demo videos for Chrome extensions, recorded by agents or humans
+from a declarative beat sheet.
 
-**One-line pitch:** your agent produces a polished, reproducible demo video of
-your extension — and re-records it in CI whenever the UI changes.
+```bash
+diorama record demo.beats.yaml
+# → demo.mp4 + poster.jpg — real extension, real page, frame-composited
+```
 
-## Why this doesn't already exist
+Your extension runs for real — real service worker, real popup code, real
+network — inside a headless Chrome engine. Diorama drives it from a YAML
+**beat sheet**, captures every target, and composites the result inside a
+clean, drawn browser frame with a synthetic cursor. No screen recording, no
+OS permissions, no window juggling. Change the beat sheet or your extension's
+UI, run one command, get a pixel-perfect re-record. It also speaks MCP, so
+your coding agent can author and record demos for you.
 
-- Screen recorders (Screen Studio, Cap, Tella) make human recordings pretty; they
-  can't be driven by agents and know nothing about extensions.
-- Automation frameworks (Playwright, Puppeteer) can't touch browser UI: an action
-  popup is not page DOM, `chrome.action.openPopup()` is focus-gated and flaky
-  under automation (verified 2026-08-12: fails "no active browser window" from
-  background, "failed to open popup" even after OS-level activation).
-- Chrome's own Recorder doesn't know extensions exist.
+**Why it exists:** action popups are browser chrome — Playwright and Puppeteer
+cannot open or film them, `chrome.action.openPopup()` is focus-gated under
+automation, and screen recorders can't be driven by agents. Diorama opens your
+real `popup.html` as a driven page with a small `tabs.query` shim so it sees
+the stage tab as active, which works for any extension unmodified.
 
-Nobody owns "agent → beautiful extension demo." ~140k Web Store extensions all
-need store screenshots/videos every release, and they all rot.
+## Requirements
 
-## Architecture: real engine, synthetic chrome
+- Node 22+
+- Chrome for Testing (`DIORAMA_CHROME` env var, or the auto-detected default)
+- ffmpeg + ffprobe on PATH (`DIORAMA_FFMPEG` / `DIORAMA_FFPROBE` to override)
+
+Check everything at once:
+
+```bash
+diorama doctor
+```
+
+## Quickstart
+
+```bash
+diorama init                 # writes demo.beats.yaml
+$EDITOR demo.beats.yaml      # point it at your extension + target page
+diorama record demo.beats.yaml --out out/
+```
+
+`record` launches the engine with your unpacked extension, executes the steps
+with real input events (CDP mouse/keyboard, not DOM .click()), captures the
+page and popup, and renders `out/<title>.mp4` plus a poster frame. Add
+`--keep-run` to keep the raw frames, `events.json`, and `timing.json`.
+
+## Beat sheet
+
+```yaml
+version: 1
+title: My extension demo
+viewport: { width: 1280, height: 860, scale: 2 }   # +100px drawn toolbar → 4:3 output
+extension:
+  path: ../my-extension          # unpacked dir, relative to this file
+  popup: { width: 600, height: 600 }
+steps:
+  - verb: goto
+    url: https://example.com/somewhere-interesting
+  - verb: wait
+    selector: ".content"
+  - verb: openPopup              # the real popup, shimmed to see this tab
+  - verb: click
+    target: popup
+    selector: text=Do the thing
+  - verb: wait
+    target: popup
+    expression: /done/i.test(document.body.innerText)
+  - verb: hold
+    ms: 1500
+  - verb: mark                   # poster frame is taken at the last mark
+    name: end
+```
+
+| verb | fields | notes |
+| --- | --- | --- |
+| `goto` | `url` | first goto creates the stage tab |
+| `wait` | `selector` \| `ms` \| `expression`, `timeoutMs` | exactly one condition; `target: page\|popup` |
+| `click` | `selector`, `target` | real mouse move → press → release at the element |
+| `type` | `selector`, `text`, `perCharMs` | clicks first, then types per character |
+| `scroll` | `deltaY`, `steps`, `stepMs`, `target` | stepped wheel events |
+| `hover` | `selector`, `target` | mouse move only |
+| `openPopup` / `closePopup` | — | opens `extension.popup` sized popup with the tabs-query shim |
+| `camera` | `zoom`, `focus`, `ms` | recorded for the compositor (zoom/pan planned) |
+| `hold` | `ms` | let a state breathe |
+| `mark` | `name` | names a beat; last mark = poster frame |
+
+Selectors are CSS, or `text=...` for a case-insensitive innermost visible text
+match.
+
+## MCP server (for agents)
+
+```bash
+claude mcp add diorama -- node <repo>/packages/mcp/dist/main.js
+```
+
+Tools: `record_demo`, `validate_sheet`, `doctor`, and stateful interactive
+sessions — `launch_session`, `open_popup`, `click`, `type_text`, `navigate`,
+`screenshot`, `close_session` — so an agent can explore your extension live,
+write the beat sheet, validate it, and record, all without leaving chat.
+
+## How it works
 
 Chrome for Testing runs `--headless=new --load-extension` as an offscreen
-engine. Nothing of Chrome's real UI is ever shown. Diorama renders its own
-browser frame (tab bar, omnibox, toolbar icon) and composites:
+render engine; nothing of Chrome's own UI is ever filmed. The popup is opened
+as an ordinary CDP target in the same profile (same service worker, storage,
+and state), with `chrome.tabs.query({active: true, currentWindow: true})`
+shimmed to resolve to the stage tab — the one API a popup-as-page gets wrong.
+The executor logs every input event with coordinates and timestamps; the
+compositor maps captured frames onto a fixed-fps timeline, draws the browser
+frame from an HTML theme (`frames/`), overlays the popup under the toolbar
+icon with a fade, animates a synthetic cursor along eased piecewise paths,
+and hands ffmpeg a fully terminating filter graph.
 
-    drawn browser chrome
-      + live page pixels        (CDP screencast / BeginFrame capture)
-      + real popup pixels       (popup.html opened as an ordinary CDP target)
-      + synthetic smooth cursor (every event's coords are machine-known)
-    → frame-perfect mp4 + poster frames
+Full design history and verified engine facts: [docs/DESIGN-NOTES.md](docs/DESIGN-NOTES.md).
 
-### The popup shim — the key unlock
+## Example
 
-The extension's real `popup.html` is opened as a plain CDP target in the same
-profile: same service worker, same storage, same plan/auth state, genuinely the
-extension's code. Its only defect as a target is that
-`chrome.tabs.query({active: true, currentWindow: true})` resolves to itself
-instead of the stage tab. Diorama injects a tiny shim
-(`Page.addScriptToEvaluateOnNewDocument` on `chrome-extension://` targets) that
-rewrites active-tab resolution to the stage tab. Works for ANY extension, zero
-modification. Everything else runs unmodified —
-`chrome.scripting.executeScript({target:{tabId}})` takes an explicit tab id and
-doesn't care about focus. Content-script overlay extensions need no shim at all
-(their UI lives in the page).
+[`examples/comment-scraper`](examples/comment-scraper) records the Reddit
+Comment Scraper extension scraping a live r/sleep thread — the demo shipped on
+[tryadlicio.com](https://tryadlicio.com). 11 seconds, 631KB, one command to
+re-record.
 
-### What the architecture buys
+## Development
 
-- **No macOS screen-recording permission** — no screen is recorded; frames come
-  out of CDP.
-- **No focus/blur fragility** — nothing depends on OS window focus (real popups
-  close on blur; we have no real popup window).
-- **Frame-perfect 60fps** — headless BeginFrame mode pulls frames: advance
-  virtual clock → render → capture. No dropped frames ever. (The Remotion trick
-  applied to live browser sessions.)
-- **Runs in CI** — the engine is Node+CDP, headless. "Re-record the demo" is a
-  CI job on every release.
-- **Brand-clean output** — the browser frame is ours: no bookmark clutter, no
-  profile avatar, retina at any scale, light/dark variants, not Chrome's trade
-  dress.
+npm workspaces: `engine` (zero-dep CDP client + Chrome lifecycle), `beats`
+(schema + executor), `compositor` (plan + ffmpeg render), `cli`, `mcp`.
 
-### Trade-off
+```bash
+npm install
+npm run build          # tsc -b, strict
+npm test               # unit tests
+DIORAMA_IT=1 npx vitest run    # + live integrations (launches Chrome, runs ffmpeg)
+```
 
-Output shows a *stylized* browser, not literally Chrome. Right for store assets
-and landing pages; a headful "live mode" (real window + ScreenCaptureKit) stays
-as an escape hatch for forensically authentic captures.
+## Status
 
-## Components
-
-1. **Engine/session manager** — launch Chrome for Testing with extension +
-   per-project profile (auth/plan state seeded via `chrome.storage`), CDP port.
-2. **Driver** — CDP client executing beat sheets: navigate, click, wait,
-   open-popup(shimmed), camera hints.
-3. **Compositor/renderer** — BeginFrame capture of stage + popup targets,
-   HTML/canvas-rendered browser frame, synthetic cursor, ffmpeg encode to web
-   profiles + poster frame.
-4. **Agent surface** — local MCP server: `launch_session`, `navigate`, `click`,
-   `open_popup`, `start/stop_recording`, `mark_beat`, `export`. Beat sheet
-   (YAML) lives in the extension's own repo.
-5. **Mac app (later)** — SwiftUI shell: live composite preview, beat-sheet
-   editing, one-click export. Polish layer, not load-bearing.
-
-## MVP spike (phase 1)
-
-One chain, headless, guinea pig = Reddit Comment Scraper
-(`~/Developer/RedditCommentScraper`, loads unpacked):
-
-1. `--headless=new --load-extension` + magnesium thread
-   (https://www.reddit.com/r/sleep/comments/1p55102/has_anyone_found_a_magnesium_supplement_that/)
-2. Open `popup.html` as target with tabs-query shim
-3. Click "Scrape Comments" → confirm real comments land
-4. Pull synchronized frames of both targets
-5. Composite inside an HTML browser frame → watchable mp4
-
-First output doubles as the replacement landing-page demo video for
-hookcollective (`public/videos/extension-scrape-demo.mp4` + poster; also used on
-`src/app/welcome/page.tsx`).
-
-## Facts verified by the phase-1 spike (2026-08-12, spike/run.mjs — ALL GATES PASSED)
-
-- `--headless=new --load-extension` runs the MV3 extension fully: SW alive,
-  popup renders, **real scrape completes** ("Scraped 82 of 93 comments" off the
-  live magnesium thread) in ~1.5s.
-- **The tabs-query shim works.** Popup opened as a CDP target with
-  `Page.addScriptToEvaluateOnNewDocument` sees the stage tab as active; Scrape
-  button enables; `chrome.scripting.executeScript` runs unmodified.
-- **`HeadlessExperimental.beginFrame` no longer exists** in headless=new (148).
-  Engine capture = screenshot/screencast loop (+ virtual time for determinism
-  later). PLAN's fallback is now the main path.
-- **Component-extension trap:** Chrome ships its own chrome-extension:// service
-  workers (e.g. thunk.js). Select the SW by `getManifest().name`, never "first
-  extension target".
-- **Without the `tabs` permission, `tab.url` is hidden** from `tabs.query`.
-  Resolve the stage tabId by probing tabs with `executeScript` (succeeds only
-  where host permissions exist) — no manifest patching needed when the
-  extension already declares host permissions (Comment Scraper declares
-  `https://*.reddit.com/*`; the activeTab concern from the design session was
-  moot).
-- **Completion detection must be scoped**: loose word-matching false-positived
-  on "export" in the popup's own pricing copy. Wait for the working state
-  ("Scraping comments…") to appear then clear.
-- Composite v0 (drawn chrome frame + stage + popup via ffmpeg overlay) looks
-  right: `spike/out/spike-demo.mp4` + `poster.jpg`, 2560×1800.
-- Spike-visible polish items for the real compositor: log into Reddit or hide
-  the logged-out sidebar/promoted posts (profile seeding), favicon in the drawn
-  tab, popup shadow/rounded corners, beat-paced timing (scrape is fast; the
-  demo needs holds and scrolls).
-
-## Facts verified during design (2026-08-12)
-
-- Comment Scraper popup renders fine as a plain page (600×600), drivable DOM.
-- Scrape button correctly disables when active tab isn't a supported page —
-  this is the exact behavior the shim fixes.
-- Extension loads clean in Playwright persistent context (id
-  `gfmafjkhloigpbkibadllpabodmjppmc` in test profile).
-- Auth lives in `chrome.storage.local` keys `user` + `authToken`
-  (`js/auth-session.js`) — seedable, needs a real token to show ALL ACCESS.
-- Active-tab resolution: `js/scraper.js:125`, `popup.js:325`.
-- Chrome for Testing here: 148.0.7778.96 (openPopup min is 127 — version was
-  never the problem; focus gating is).
-
-## Name
-
-Diorama: a real, living scene composed inside a crafted display box. Runners-up
-considered: Backlot, Zoetrope.
+v0.1.0 — working end to end (engine, beats, compositor, CLI, MCP, dogfooded
+in production). Pre-release: not yet on npm; license not yet chosen. Planned
+next: camera zoom/pan rendering, profile seeding for logged-in stage sessions,
+side-panel and DevTools-panel surfaces, CI recipe.

@@ -1,6 +1,6 @@
 {
   "name": "diorama",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "bin": {
     "diorama": "./dist/main.js"
@@ -18,8 +18,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/beats": "file:../beats",
-    "@diorama/compositor": "file:../compositor",
-    "@diorama/engine": "file:../engine"
-  }
+    "@diorama/beats": "0.1.0",
+    "@diorama/compositor": "0.1.0",
+    "@diorama/engine": "0.1.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
 }

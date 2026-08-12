@@ -1,6 +1,6 @@
 {
   "name": "@diorama/mcp",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
@@ -19,9 +19,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/beats": "file:../beats",
-    "@diorama/compositor": "file:../compositor",
-    "@diorama/engine": "file:../engine",
-    "diorama": "file:../cli"
-  }
+    "@diorama/beats": "0.1.0",
+    "@diorama/compositor": "0.1.0",
+    "@diorama/engine": "0.1.0",
+    "diorama": "0.1.0"
+  },
+  "license": "UNLICENSED"
 }

@@ -1,6 +1,6 @@
 {
   "name": "@diorama/beats",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -16,8 +16,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@diorama/engine": "0.0.0",
+    "@diorama/engine": "0.1.0",
     "yaml": "^2.0.0",
     "zod": "^3.0.0"
-  }
+  },
+  "license": "UNLICENSED"
 }
