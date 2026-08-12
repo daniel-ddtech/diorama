@@ -87,10 +87,33 @@ steps:
 | `hold` | `ms` | let a state breathe |
 | `mark` | `name` | names a beat; the last mark becomes the poster frame |
 
-Output options under `output:` are `fps` (30), `holdTailMs` (2000), and
-`endCard` (true). The end card is a short "Recorded with diorama" title at the
-end of the video. Turn it off with `endCard: false` in the sheet or
-`--no-end-card` on the command line.
+Top-level customization blocks (all optional):
+
+```yaml
+frame:                     # the drawn browser chrome
+  theme: dark              # dark | light | ./path/to/your-theme.html
+  url: reddit.com/r/sleep  # omnibox text, defaults to the last goto URL
+  title: My demo           # tab text, defaults to the sheet title
+profile:
+  dir: ./chrome-profile    # persistent profile: stay logged in across runs
+  seedStorage: ./seed.json # chrome.storage.local seed for the extension
+cursor:
+  scale: 1.0               # cursor size multiplier
+  ripple: true             # click ripple animation
+  shadow: true             # drop shadow under the cursor
+output:
+  fps: 30
+  holdTailMs: 2000
+  endCard: true            # false, or { title: "...", subtitle: "..." }
+  posterAt: scraped        # mark name or milliseconds; default: last mark
+  formats:                 # extra renders from the same recording
+    - { name: cws, width: 1280, height: 800, fit: cover, crf: 26 }
+```
+
+The `extension.popup` block accepts `autoSize: true` (measure the popup's real
+content size and match it) and `position: right | left`. The `camera` verb
+zooms between 1 and 2.5 with an eased move over `ms` milliseconds, focused on
+`page` or `popup`.
 
 Selectors are CSS, or `text=...` for a case-insensitive match on visible text.
 

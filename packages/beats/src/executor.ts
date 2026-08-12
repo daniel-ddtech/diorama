@@ -319,7 +319,20 @@ export async function runBeats(
           } catch {
             // A popup with no body text still gets measured after the settle window.
           }
-          const measured = await engine.measureContentSize(popup.session);
+          // Popup scripts populate the DOM asynchronously; a single early
+          // measurement under-reports. Poll until two consecutive readings
+          // agree (or 1.5s), so the recorded size reflects settled content.
+          let measured = await engine.measureContentSize(popup.session);
+          const settleDeadline = Date.now() + 1_500;
+          while (Date.now() < settleDeadline) {
+            await new Promise((resolve) => setTimeout(resolve, 120));
+            const next = await engine.measureContentSize(popup.session);
+            if (next.width === measured.width && next.height === measured.height) {
+              measured = next;
+              break;
+            }
+            measured = next;
+          }
           finalWidth = Math.min(800, Math.max(25, measured.width));
           finalHeight = Math.min(600, Math.max(25, measured.height));
           await engine.applyViewport(popup.session, {

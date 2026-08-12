@@ -155,10 +155,10 @@ describe("ffmpegArgs", () => {
     expect(args).not.toContain("/tmp/popup.ffconcat");
     expect(graph).not.toContain("[popup]");
     expect(graph).toContain("[framed][cursor]overlay");
-    expect(graph).not.toContain("crop=");
+    expect(graph).not.toContain("zoompan=");
   });
 
-  it("adds piecewise camera crop expressions after the cursor", () => {
+  it("adds a per-frame zoompan stage after the cursor", () => {
     const cameraSegments = cameraTrack([{
       verb: "camera",
       target: "page",
@@ -188,10 +188,11 @@ describe("ffmpegArgs", () => {
       mp4Path: "/tmp/demo.mp4",
     });
     const graph = args[args.indexOf("-filter_complex") + 1]!;
-    expect(graph).toContain("[withcursor]crop=");
-    expect(graph).toContain("clip(");
-    expect(graph).toContain("if(lt(t,");
-    expect(graph).toContain("scale=1280:900:flags=lanczos,setsar=1[out]");
+    expect(graph).toContain("[withcursor]zoompan=");
+    expect(graph).toContain("lt(it,");
+    expect(graph).toContain("min(max(");
+    expect(graph).toContain("if(lt(it,");
+    expect(graph).toContain("d=1:s=1280x900:fps=30[out]");
   });
 
   it("adds a finite image-sequence input and timed overlay per ripple", () => {

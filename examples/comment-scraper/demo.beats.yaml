@@ -30,6 +30,10 @@ steps:
   - verb: hold
     ms: 900
   - verb: openPopup
+  - verb: camera
+    zoom: 1.35
+    focus: popup
+    ms: 700
   - verb: wait
     target: popup
     selector: text=Scrape a post yourself
@@ -62,6 +66,12 @@ steps:
     target: popup
     deltaY: 400
   - verb: hold
-    ms: 1500
+    ms: 1200
+  - verb: camera
+    zoom: 1.0
+    focus: page
+    ms: 800
+  - verb: hold
+    ms: 1000
   - verb: mark
     name: end

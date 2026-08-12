@@ -347,19 +347,21 @@ function cameraLinearExpression(
   segment: CameraSegment,
   startKey: "zoom0" | "focusX0" | "focusY0",
   endKey: "zoom1" | "focusX1" | "focusY1",
+  timeVar: string,
 ): string {
   const t0 = segment.t0 / 1_000;
   const t1 = segment.t1 / 1_000;
   const start = segment[startKey];
   const end = segment[endKey];
   if (t1 <= t0 || start === end) return decimal(end);
-  return `${decimal(start)}+(${decimal(end - start)})*(t-${decimal(t0)})/${decimal(t1 - t0)}`;
+  return `${decimal(start)}+(${decimal(end - start)})*(${timeVar}-${decimal(t0)})/${decimal(t1 - t0)}`;
 }
 
 function cameraExpression(
   segments: CameraSegment[],
   startKey: "zoom0" | "focusX0" | "focusY0",
   endKey: "zoom1" | "focusX1" | "focusY1",
+  timeVar = "t",
 ): string {
   if (segments.length === 0) {
     return startKey === "zoom0" ? "1" : "0.5";
@@ -367,7 +369,7 @@ function cameraExpression(
   let expression = decimal(segments[segments.length - 1]![endKey]);
   for (let index = segments.length - 1; index >= 0; index -= 1) {
     const segment = segments[index]!;
-    expression = `if(lt(t,${decimal(segment.t0 / 1_000)}),${decimal(segment[startKey])},if(lt(t,${decimal(segment.t1 / 1_000)}),${cameraLinearExpression(segment, startKey, endKey)},${expression}))`;
+    expression = `if(lt(${timeVar},${decimal(segment.t0 / 1_000)}),${decimal(segment[startKey])},if(lt(${timeVar},${decimal(segment.t1 / 1_000)}),${cameraLinearExpression(segment, startKey, endKey, timeVar)},${expression}))`;
   }
   return expression;
 }
@@ -423,11 +425,18 @@ export function ffmpegArgs(plan: FfmpegPlan): string[] {
     `[${cursorOverlayBase}][cursor]overlay=x='${cursorX}':y='${cursorY}':eval=frame:eof_action=repeat:shortest=0[${cursorOutput}]`,
   );
   if (cameraSegments.length > 0) {
-    const zoom = cameraExpression(cameraSegments, "zoom0", "zoom1");
-    const focusX = cameraExpression(cameraSegments, "focusX0", "focusX1");
-    const focusY = cameraExpression(cameraSegments, "focusY0", "focusY1");
+    // crop's w/h expressions are evaluated ONCE at filter init (t = NaN), so
+    // an animated crop silently renders as identity. zoompan re-evaluates its
+    // zoom/x/y per frame; `it` is the input timestamp in seconds. Guard the
+    // first frame where `it` can be NaN.
+    const zoom = cameraExpression(cameraSegments, "zoom0", "zoom1", "it");
+    const focusX = cameraExpression(cameraSegments, "focusX0", "focusX1", "it");
+    const focusY = cameraExpression(cameraSegments, "focusY0", "focusY1", "it");
     filter.push(
-      `[withcursor]crop=w='iw/(${zoom})':h='ih/(${zoom})':x='clip((${focusX})*iw-iw/(2*(${zoom})),0,iw-iw/(${zoom}))':y='clip((${focusY})*ih-ih/(2*(${zoom})),0,ih-ih/(${zoom}))',scale=${plan.width}:${plan.height}:flags=lanczos,setsar=1[out]`,
+      `[withcursor]zoompan=z='if(isnan(it),1,max(1,${zoom}))'`
+      + `:x='min(max((${focusX})*iw-iw/(2*zoom),0),iw-iw/zoom)'`
+      + `:y='min(max((${focusY})*ih-ih/(2*zoom),0),ih-ih/zoom)'`
+      + `:d=1:s=${plan.width}x${plan.height}:fps=${decimal(plan.fps)}[out]`,
     );
   }
 

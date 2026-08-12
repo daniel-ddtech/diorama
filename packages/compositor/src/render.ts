@@ -374,7 +374,7 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   ]);
 
   const ffmpeg = process.env.DIORAMA_FFMPEG ?? "ffmpeg";
-  await runBinary(ffmpeg, ffmpegArgs({
+  const mainArgs = ffmpegArgs({
     frameChromePath: chromePath,
     stageConcatPath,
     cursorPath: cursorPngPath,
@@ -383,7 +383,15 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
       popup: {
         x: popupOrigin.x * viewport.scale,
         y: popupOrigin.y * viewport.scale,
-        ...popupWindow(eventFile.events),
+        // Anchor the popup stream at its first CAPTURED frame, not the
+        // openPopup event: early popup screenshots can fail while the target
+        // navigates, and shifting the stream to the event time would play the
+        // captured content early by exactly that gap.
+        ...((): { enterMs: number; exitMs: number | null } => {
+          const window = popupWindow(eventFile.events);
+          const firstFrameMs = popup.times[0]! - t0;
+          return { ...window, enterMs: Math.max(window.enterMs, firstFrameMs) };
+        })(),
       },
     } : {}),
     cursorSegments: scaledSegments(
@@ -399,7 +407,11 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     fps,
     durationMs,
     mp4Path,
-  }), "ffmpeg encode");
+  });
+  if (process.env.DIORAMA_DEBUG_FFMPEG) {
+    console.error("[diorama] ffmpeg filter graph:\n" + (mainArgs[mainArgs.indexOf("-filter_complex") + 1] ?? "(none)"));
+  }
+  await runBinary(ffmpeg, mainArgs, "ffmpeg encode");
 
   const posterRequestMs = requestedPosterMs(
     options.sheet.output?.posterAt,
