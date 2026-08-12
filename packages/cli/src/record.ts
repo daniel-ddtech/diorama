@@ -190,6 +190,7 @@ export async function recordDemo(
     engine = await Engine.launch({
       userDataDir: profileDir,
       ...(extensionDir === undefined ? {} : { extensionDir }),
+      extraArgs: [`--lang=${sheet.locale}`, `--accept-lang=${sheet.locale}`],
     });
     const extension = extensionAssets === undefined
       ? undefined

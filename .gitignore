@@ -6,3 +6,4 @@ spike/debug*.mjs
 node_modules/
 packages/*/dist/
 examples/*/out*/
+/out*/

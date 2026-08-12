@@ -99,6 +99,8 @@ frame:                     # the drawn browser chrome
 profile:
   dir: ./chrome-profile    # persistent profile: stay logged in across runs
   seedStorage: ./seed.json # chrome.storage.local seed for the extension
+locale: en-US              # pins Chrome's UI and Accept-Language so recordings
+                           # do not vary with the recording machine's locale
 cursor:
   scale: 1.0               # cursor size multiplier
   ripple: true             # click ripple animation

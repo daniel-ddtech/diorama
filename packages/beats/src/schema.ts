@@ -117,6 +117,11 @@ export const beatSheetSchema = z.object({
     dir: z.string().optional(),
     seedStorage: z.string().optional(),
   }).default({}),
+  // Pinned so recordings do not vary with the recording machine's IP locale
+  // (Reddit, Google sign-in iframes, etc. localize from Accept-Language).
+  locale: z.string().regex(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/, {
+    message: "locale must be a BCP 47 tag like en-US",
+  }).default("en-US"),
   viewport: z.object({
     width: positiveInteger,
     height: positiveInteger,

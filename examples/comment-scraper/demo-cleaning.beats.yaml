@@ -1,0 +1,72 @@
+# Landing page candidate: r/CleaningTips overrated-cleaning-product thread
+# (~143 comments, under the free tier's 150 cap so the scrape completes).
+version: 1
+title: Reddit Comment Scraper
+viewport:
+  width: 1280
+  height: 860
+  scale: 2
+extension:
+  path: ../../spike/tmp-ext
+  popup:
+    width: 600
+    height: 600
+stageUrlSubstring: /r/CleaningTips/
+steps:
+  - verb: goto
+    url: https://www.reddit.com/r/CleaningTips/comments/1vlq07m/whats_a_cleaning_product_everyone_seems_to_love/
+  - verb: wait
+    expression: document.querySelectorAll("shreddit-comment").length > 3
+    timeoutMs: 40000
+  - verb: hold
+    ms: 1500
+  - verb: scroll
+    deltaY: 500
+  - verb: hold
+    ms: 900
+  - verb: openPopup
+  - verb: camera
+    zoom: 1.35
+    focus: popup
+    ms: 700
+  - verb: wait
+    target: popup
+    selector: text=Scrape a post yourself
+  - verb: hold
+    ms: 900
+  - verb: click
+    target: popup
+    selector: text=Scrape a post yourself
+  - verb: wait
+    target: popup
+    selector: text=Scrape Comments
+  - verb: hold
+    ms: 700
+  - verb: click
+    target: popup
+    selector: text=Scrape Comments
+  - verb: wait
+    target: popup
+    expression: /scraping comments|pulling comments/i.test(document.body.innerText)
+    timeoutMs: 15000
+  - verb: wait
+    target: popup
+    expression: '!/scraping comments|pulling comments/i.test(document.body.innerText)'
+    timeoutMs: 180000
+  - verb: hold
+    ms: 1000
+  - verb: mark
+    name: scraped
+  - verb: scroll
+    target: popup
+    deltaY: 400
+  - verb: hold
+    ms: 1200
+  - verb: camera
+    zoom: 1.0
+    focus: page
+    ms: 800
+  - verb: hold
+    ms: 1000
+  - verb: mark
+    name: end
