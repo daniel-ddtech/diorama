@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hotspot offset: (1px, 1px) from the top-left corner. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="21" height="28" viewBox="0 0 21 28">
+  <path
+    d="M1.5 1.5v21.2l5.15-4.92 3.48 8.13 4.12-1.77-3.43-8.02h7.26z"
+    fill="#fff"
+    stroke="#000"
+    stroke-width="2.2"
+    stroke-linejoin="round"
+  />
+</svg>

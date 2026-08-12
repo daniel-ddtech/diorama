@@ -1,0 +1,124 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html, body {
+      width: {{WIDTH}}px;
+      height: {{HEIGHT}}px;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    }
+    .chrome {
+      width: 100%;
+      height: {{TOOLBAR_H}}px;
+      padding: 10px 14px 0;
+      background: linear-gradient(#26262b, #202024);
+      border-bottom: 1px solid #000;
+    }
+    .row1 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 36px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      flex: 0 0 12px;
+      border-radius: 50%;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 380px;
+      margin-left: 14px;
+      padding: 8px 18px;
+      overflow: hidden;
+      color: #e8e8ea;
+      background: #3a3a41;
+      border-radius: 10px 10px 0 0;
+      font-size: 13px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .tab img {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 14px;
+      border-radius: 3px;
+    }
+    .row2 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      height: 44px;
+      padding-top: 6px;
+    }
+    .nav {
+      width: 24px;
+      color: #9a9aa2;
+      font-size: 17px;
+      text-align: center;
+    }
+    .omni {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      padding: 9px 16px;
+      overflow: hidden;
+      color: #c9c9cf;
+      background: #1a1a1f;
+      border: 1px solid #333;
+      border-radius: 999px;
+      font-size: 13px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .lock { color: #8a8a92; font-size: 12px; }
+    .ext {
+      display: flex;
+      width: 26px;
+      height: 26px;
+      flex: 0 0 26px;
+      align-items: center;
+      justify-content: center;
+      background: #2e2e34;
+      border-radius: 6px;
+      outline: 2px solid #ff5c1c;
+      outline-offset: 1px;
+    }
+    .ext img { width: 18px; height: 18px; }
+    .content {
+      width: 100%;
+      height: calc({{HEIGHT}}px - {{TOOLBAR_H}}px);
+      background: transparent;
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <div class="row1">
+      <div class="dot" style="background:#ff5f57"></div>
+      <div class="dot" style="background:#febc2e"></div>
+      <div class="dot" style="background:#28c840"></div>
+      <div class="tab"><img src="{{ICON_SRC}}" alt=""><span>{{TITLE}}</span></div>
+    </div>
+    <div class="row2">
+      <div class="nav">←</div>
+      <div class="nav">→</div>
+      <div class="nav">⟳</div>
+      <div class="omni"><span class="lock">●</span><span>{{URL}}</span></div>
+      <div class="ext"><img src="{{ICON_SRC}}" alt=""></div>
+    </div>
+  </div>
+  <div class="content"></div>
+</body>
+</html>
