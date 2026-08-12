@@ -1,0 +1,25 @@
+<!doctype html>
+<!-- One frame of the click ripple. The compositor renders this at a series of
+     progress values ({{P}} in 0..1) and overlays the resulting sequence at
+     each click's coordinates. Canvas is 64x64, ripple is centered; the click
+     point maps to the center. Neutral colors so it reads on any page. -->
+<meta charset="utf-8">
+<style>
+  html, body { width: 64px; height: 64px; margin: 0; overflow: hidden; background: transparent; }
+  .ring {
+    --p: {{P}};
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(10px + 44px * var(--p));
+    height: calc(10px + 44px * var(--p));
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2.5px solid rgba(255, 255, 255, calc(0.9 * (1 - var(--p))));
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, calc(0.35 * (1 - var(--p)))),
+      inset 0 0 0 1px rgba(0, 0, 0, calc(0.35 * (1 - var(--p))));
+    background: rgba(255, 255, 255, calc(0.22 * (1 - var(--p))));
+  }
+</style>
+<div class="ring"></div>
