@@ -18,6 +18,10 @@ export interface RecordCommandOptions {
 export interface RecordDemoOptions {
   sheetPath: string;
   outDir?: string;
+  /** Exact main output path. Primarily used by embedded callers. */
+  outPath?: string;
+  /** Exact poster output path. Primarily used by embedded callers. */
+  posterPath?: string;
   fps?: number;
   keepRun?: boolean;
   /** Override the sheet's output.endCard (e.g. --no-end-card). */
@@ -26,6 +30,8 @@ export interface RecordDemoOptions {
   profileDir?: string;
   /** Override the sheet's extension storage seed JSON file. */
   seedStorage?: string;
+  /** Receive orchestration and per-step progress. */
+  log?: (message: string) => void;
 }
 
 export interface RecordDemoResult extends RenderDemoResult {
@@ -128,6 +134,7 @@ async function loadExtensionManifest(
 export async function recordDemo(
   options: RecordDemoOptions,
 ): Promise<RecordDemoResult> {
+  const log = options.log ?? (() => {});
   const sheetPath = resolve(options.sheetPath);
   if (!existsSync(sheetPath)) {
     throw new Error(`Beat sheet not found: ${sheetPath}`);
@@ -147,8 +154,10 @@ export async function recordDemo(
     : await loadSeedStorage(resolve(sheetDir, configuredSeedStorage));
   const outputDir = resolve(options.outDir ?? "diorama-out");
   const slug = titleSlug(sheet.title);
-  const outPath = join(outputDir, `${slug}.mp4`);
-  const posterPath = join(outputDir, `${slug}-poster.jpg`);
+  const outPath = resolve(options.outPath ?? join(outputDir, `${slug}.mp4`));
+  const posterPath = resolve(
+    options.posterPath ?? join(outputDir, `${slug}-poster.jpg`),
+  );
   const configuredProfileDir = options.profileDir ?? sheet.profile.dir;
   const temporaryProfile = configuredProfileDir === undefined;
   const profileDir = temporaryProfile
@@ -170,14 +179,18 @@ export async function recordDemo(
   let rendered: RenderDemoResult | undefined;
   let skipped: Record<string, number> = {};
   try {
+    log("Launching Chrome");
     engine = await Engine.launch({ extensionDir, userDataDir: profileDir });
     const extension = await engine.findExtension(
       new RegExp(escapeRegExp(manifest.name), "i"),
     );
     if (seedStorage !== undefined) {
+      log("Seeding extension storage");
       await engine.seedStorage(extension.swSession, seedStorage);
     }
+    log("Running beats");
     const result = await runBeats(engine, extension, sheet, {
+      log,
       hooks: {
         onStageReady: (stage) => {
           loop = engine!.startCaptureLoop(
@@ -200,6 +213,7 @@ export async function recordDemo(
     const themePath = sheet.frame.theme === "dark" || sheet.frame.theme === "light"
       ? undefined
       : resolve(sheetDir, sheet.frame.theme);
+    log("Rendering video");
     rendered = await renderDemo({
       runDir,
       sheet: {
@@ -221,7 +235,9 @@ export async function recordDemo(
       posterPath,
       fps,
       endCard: configuredEndCard,
+      log,
     });
+    log("Recording complete");
   } finally {
     if (loop && !loopStopped) {
       try {

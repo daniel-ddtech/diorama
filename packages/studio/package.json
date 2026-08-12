@@ -1,0 +1,32 @@
+{
+  "name": "@adlicio/diorama-studio",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "diorama-studio": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "studio.html"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@adlicio/diorama": "0.1.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daniel-ddtech/diorama.git"
+  }
+}

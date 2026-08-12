@@ -41,7 +41,12 @@ export function runDoctorChecks(
   const spawn = dependencies.spawn ?? ((command, args) => (
     spawnSync(command, args, { stdio: "ignore" })
   ));
-  const chrome = resolveChromeBinary();
+  let chrome: string | undefined;
+  try {
+    chrome = resolveChromeBinary();
+  } catch {
+    chrome = undefined;
+  }
   const ffmpeg = process.env.DIORAMA_FFMPEG ?? "ffmpeg";
   const ffprobe = process.env.DIORAMA_FFPROBE ?? "ffprobe";
   const nodeVersion = dependencies.nodeVersion ?? process.versions.node;
@@ -50,8 +55,10 @@ export function runDoctorChecks(
   return [
     {
       name: "chrome",
-      ok: fileExists(chrome),
-      hint: `set DIORAMA_CHROME to a Chrome for Testing binary (checked ${chrome})`,
+      ok: chrome !== undefined && fileExists(chrome),
+      hint: chrome === undefined
+        ? "set DIORAMA_CHROME to a Chrome for Testing binary"
+        : `set DIORAMA_CHROME to a Chrome for Testing binary (checked ${chrome})`,
     },
     {
       name: "ffmpeg",

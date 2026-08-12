@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { realpathSync } from "node:fs";
+import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +14,7 @@ Commands:
   init [dir]                         Write a starter demo.beats.yaml
   record <sheet.yaml> [options]      Record and render a demo
   doctor                             Check Chrome, ffmpeg, ffprobe, and Node
+  studio [--port <n>]                Start Studio when installed
   mcp                                Show how to start the standalone MCP server
 
 Record options:
@@ -60,6 +62,27 @@ export async function main(
         return 0;
       case "doctor":
         return doctorCommand(commandArgs, { log: io.log });
+      case "studio": {
+        const packageName = "@adlicio/diorama-studio";
+        try {
+          createRequire(import.meta.url).resolve(packageName);
+        } catch {
+          io.log("run: npx diorama-studio");
+          return 0;
+        }
+        let studioModule: { main?: (args?: string[]) => Promise<number> };
+        try {
+          studioModule = await import(packageName) as typeof studioModule;
+        } catch {
+          io.log("run: npx diorama-studio");
+          return 0;
+        }
+        if (typeof studioModule.main !== "function") {
+          io.log("run: npx diorama-studio");
+          return 0;
+        }
+        return await studioModule.main(commandArgs);
+      }
       case "mcp":
         if (commandArgs.length > 0) throw new Error("mcp does not accept arguments");
         io.log("Run the Diorama MCP stdio server with: diorama-mcp");

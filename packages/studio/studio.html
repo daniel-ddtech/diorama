@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Diorama Studio</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c0c0f;
+      --surface: #16161a;
+      --surface-2: #1d1d22;
+      --border: #26262b;
+      --text: #f5f5f7;
+      --muted: #8a8a92;
+      --accent: #ff5c1c;
+      --success: #22c07a;
+      --danger: #ff5f57;
+    }
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--text);
+      background: var(--bg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    button, input, select { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    .rail {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 5;
+      display: flex;
+      width: 220px;
+      padding: 28px 18px 20px;
+      flex-direction: column;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+    }
+    .wordmark {
+      margin: 0 10px 35px;
+      color: var(--text);
+      font-size: 23px;
+      font-weight: 720;
+      letter-spacing: -0.8px;
+    }
+    .wordmark span { color: var(--accent); }
+    .nav { display: grid; gap: 5px; }
+    .nav a {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 10px 12px;
+      color: var(--muted);
+      border: 1px solid transparent;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: 120ms ease;
+    }
+    .nav a:hover { color: var(--text); background: var(--surface-2); }
+    .nav a.active { color: var(--text); background: var(--surface-2); border-color: var(--border); }
+    .nav-icon { width: 18px; font-size: 16px; text-align: center; }
+    .rail-footer { margin-top: auto; padding: 0 12px; color: var(--muted); font-size: 12px; }
+    main { margin-left: 220px; }
+    .content { width: 100%; max-width: 880px; min-height: 100vh; padding: 32px; }
+    .page-head { margin-bottom: 26px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 7px; font-size: 27px; line-height: 1.2; letter-spacing: -0.7px; }
+    h2 { margin-bottom: 6px; font-size: 18px; letter-spacing: -0.25px; }
+    h3 { margin-bottom: 5px; font-size: 15px; }
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+    .mono, code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .card {
+      padding: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .card + .card { margin-top: 14px; }
+    .btn {
+      display: inline-flex;
+      min-height: 38px;
+      padding: 9px 15px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #fff;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 650;
+      text-decoration: none;
+      transition: filter 120ms ease, opacity 120ms ease;
+    }
+    .btn:hover:not(:disabled) { filter: brightness(1.1); }
+    .btn:disabled { cursor: not-allowed; opacity: 0.38; }
+    .btn.secondary { color: var(--text); background: transparent; border-color: var(--border); font-weight: 560; }
+    .btn.danger { color: var(--danger); background: transparent; border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+    .btn.big { min-height: 50px; padding-inline: 22px; font-size: 15px; }
+    .btn.icon { width: 34px; min-height: 34px; padding: 0; }
+    .button-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .wizard-actions { display: flex; margin-top: 22px; align-items: center; justify-content: space-between; }
+    label { display: grid; gap: 7px; color: var(--muted); font-size: 12px; font-weight: 600; }
+    input, select {
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 11px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    input[type="checkbox"] { width: 17px; min-height: 17px; padding: 0; accent-color: var(--accent); }
+    .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+    .field-grid .full { grid-column: 1 / -1; }
+    .section-label { margin: 20px 0 9px; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+    .segment {
+      display: inline-flex;
+      max-width: 100%;
+      overflow: auto;
+      border-radius: 8px;
+    }
+    .segment button {
+      min-height: 38px;
+      padding: 8px 13px;
+      color: var(--muted);
+      white-space: nowrap;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-right-width: 0;
+      cursor: pointer;
+    }
+    .segment button:first-child { border-radius: 8px 0 0 8px; }
+    .segment button:last-child { border-right-width: 1px; border-radius: 0 8px 8px 0; }
+    .segment button.active { position: relative; color: var(--accent); border-color: var(--accent); border-right-width: 1px; }
+    .segment button.active + button { border-left-width: 0; }
+    .stepper { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 28px; }
+    .step-badge { position: relative; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .step-badge:not(:last-child)::after {
+      position: absolute;
+      top: 14px;
+      left: 32px;
+      right: 8px;
+      height: 1px;
+      background: var(--border);
+      content: "";
+    }
+    .step-circle {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      width: 29px;
+      height: 29px;
+      flex: 0 0 29px;
+      place-items: center;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      font-weight: 700;
+    }
+    .step-badge.active { color: var(--text); }
+    .step-badge.active .step-circle { color: var(--accent); border-color: var(--accent); }
+    .step-badge.done .step-circle { color: #061d12; background: var(--success); border-color: var(--success); }
+    .step-badge.done:not(:last-child)::after { background: var(--success); }
+    .pick-card { display: grid; min-height: 190px; place-items: center; text-align: center; }
+    .extension-card { display: flex; align-items: center; gap: 16px; }
+    .extension-icon {
+      display: grid;
+      width: 64px;
+      height: 64px;
+      flex: 0 0 64px;
+      place-items: center;
+      overflow: hidden;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--muted);
+      font-size: 23px;
+    }
+    .extension-icon img { width: 46px; height: 46px; object-fit: contain; }
+    .chips { display: flex; margin-top: 8px; gap: 6px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex;
+      padding: 3px 7px;
+      align-items: center;
+      color: var(--muted);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .chip.accent { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 42%, var(--border)); }
+    .chip.success { color: var(--success); border-color: color-mix(in srgb, var(--success) 42%, var(--border)); }
+    .chip.warning { color: #febc2e; border-color: #5a4924; }
+    .danger-text { color: var(--danger); }
+    .success-text { color: var(--success); }
+    .text-link { padding: 0; color: var(--accent); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+    details { margin-top: 18px; }
+    summary { color: var(--muted); cursor: pointer; user-select: none; }
+    details[open] summary { margin-bottom: 15px; color: var(--text); }
+    .check-row { display: flex; align-items: center; gap: 10px; color: var(--text); font-size: 13px; }
+    .check-row + .check-row { margin-top: 12px; }
+    .beats-layout { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.85fr); gap: 16px; align-items: start; }
+    .steps { display: grid; gap: 10px; }
+    .step-row { padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+    .step-row-head { display: flex; margin-bottom: 12px; align-items: center; justify-content: space-between; gap: 12px; }
+    .step-number { color: var(--muted); font-family: ui-monospace, monospace; font-size: 11px; }
+    .step-controls { display: flex; gap: 5px; }
+    .step-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .step-fields .wide { grid-column: 1 / -1; }
+    .step-fields label { font-size: 10px; }
+    .step-fields input, .step-fields select { min-height: 35px; padding: 7px 9px; font-size: 12px; }
+    .preview { position: sticky; top: 22px; overflow: hidden; }
+    .preview-head { display: flex; margin-bottom: 10px; align-items: center; justify-content: space-between; }
+    pre {
+      max-height: 570px;
+      margin: 0;
+      padding: 14px;
+      overflow: auto;
+      color: #d5d5db;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.55;
+      white-space: pre;
+    }
+    .validation { min-height: 20px; margin-top: 10px; font-size: 12px; }
+    .summary-list { display: grid; grid-template-columns: 130px 1fr; gap: 10px 20px; margin: 16px 0 0; }
+    .summary-list dt { color: var(--muted); }
+    .summary-list dd { margin: 0; overflow-wrap: anywhere; }
+    .record-zone { display: grid; margin-top: 18px; gap: 14px; justify-items: start; }
+    .spinner {
+      width: 15px;
+      height: 15px;
+      border: 2px solid #ffffff55;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 700ms linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .log {
+      width: 100%;
+      height: 220px;
+      padding: 14px;
+      overflow: auto;
+      color: #c7c7ce;
+      background: #09090b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font: 11px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre-wrap;
+    }
+    .result-video { width: 100%; margin-top: 15px; background: #050506; border: 1px solid var(--border); border-radius: 10px; }
+    .result-meta { display: flex; margin: 12px 0 18px; gap: 12px; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+    .library-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+    .run-card { padding: 0; overflow: hidden; cursor: pointer; transition: transform 130ms ease, border-color 130ms ease; }
+    .run-card:hover { transform: translateY(-2px); border-color: #3b3b42; }
+    .thumb { display: grid; aspect-ratio: 16 / 9; place-items: center; overflow: hidden; color: #5f5f68; background: var(--surface-2); }
+    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .run-info { padding: 14px; }
+    .run-info h3 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .run-meta { display: flex; margin-top: 8px; justify-content: space-between; color: var(--muted); font-size: 11px; }
+    .empty { padding: 55px 25px; text-align: center; }
+    .doctor-list { display: grid; gap: 0; }
+    .doctor-row { display: grid; grid-template-columns: 14px 90px 1fr; gap: 10px; padding: 13px 0; align-items: start; border-bottom: 1px solid var(--border); }
+    .doctor-row:last-child { border-bottom: 0; }
+    .status-dot { width: 9px; height: 9px; margin-top: 5px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 0 3px #ff5f571a; }
+    .status-dot.ok { background: var(--success); box-shadow: 0 0 0 3px #22c07a1a; }
+    .modal-shell {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      padding: 24px;
+      place-items: center;
+      background: #050507cc;
+      backdrop-filter: blur(6px);
+    }
+    .modal { width: min(680px, 100%); max-height: min(720px, calc(100vh - 48px)); overflow: hidden; background: var(--surface); border: 1px solid #35353b; border-radius: 14px; box-shadow: 0 24px 80px #000a; }
+    .modal-head, .modal-foot { display: flex; padding: 17px 20px; align-items: center; justify-content: space-between; gap: 12px; }
+    .modal-head { border-bottom: 1px solid var(--border); }
+    .modal-foot { border-top: 1px solid var(--border); }
+    .modal-body { min-height: 320px; max-height: 520px; padding: 12px; overflow: auto; }
+    .breadcrumbs { display: flex; min-width: 0; gap: 3px; align-items: center; overflow: auto; }
+    .crumb { padding: 4px 6px; color: var(--muted); white-space: nowrap; background: none; border: 0; border-radius: 5px; cursor: pointer; }
+    .crumb:hover { color: var(--text); background: var(--surface-2); }
+    .folder-row { display: flex; width: 100%; padding: 10px; align-items: center; gap: 10px; color: var(--text); background: transparent; border: 0; border-radius: 8px; cursor: pointer; text-align: left; }
+    .folder-row:hover { background: var(--surface-2); }
+    .folder-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .overlay-player { width: min(900px, 100%); }
+    .overlay-player video { display: block; width: 100%; max-height: 78vh; background: #000; border-radius: 12px; }
+    .overlay-close { position: fixed; top: 20px; right: 20px; }
+    .toast { position: fixed; right: 22px; bottom: 22px; z-index: 40; padding: 10px 14px; color: var(--text); background: var(--surface-2); border: 1px solid #3a3a40; border-radius: 8px; box-shadow: 0 12px 30px #0008; }
+    @media (max-width: 860px) {
+      .beats-layout { grid-template-columns: 1fr; }
+      .preview { position: static; }
+    }
+    @media (max-width: 700px) {
+      .rail { position: static; width: 100%; height: auto; padding: 16px; border-right: 0; border-bottom: 1px solid var(--border); }
+      .wordmark { margin: 0 8px 13px; }
+      .nav { grid-template-columns: repeat(3, 1fr); }
+      .nav a { justify-content: center; padding-inline: 8px; }
+      .nav-icon { display: none; }
+      .rail-footer { display: none; }
+      main { margin-left: 0; }
+      .content { padding: 24px 18px; }
+      .step-badge { display: grid; justify-items: center; gap: 5px; text-align: center; }
+      .step-badge:not(:last-child)::after { top: 14px; left: calc(50% + 18px); right: calc(-50% + 18px); }
+      .field-grid, .step-fields { grid-template-columns: 1fr; }
+      .field-grid .full, .step-fields .wide { grid-column: auto; }
+      .summary-list { grid-template-columns: 95px 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const VERSION = "0.1.0";
+    const app = document.querySelector("#app");
+    const verbs = ["goto", "wait", "click", "type", "scroll", "hover", "openPopup", "closePopup", "camera", "hold", "mark"];
+    const state = {
+      route: location.hash.slice(1) || "new",
+      step: 1,
+      extensionPath: null,
+      manifest: null,
+      manifestError: null,
+      manifestLoading: false,
+      browser: { open: false, loading: false, data: null, error: null },
+      stage: {
+        url: "",
+        viewport: "landing",
+        customWidth: 1280,
+        customHeight: 720,
+        theme: "dark",
+        profileDir: "",
+        seedStorage: "",
+        ripple: true,
+        endCard: true,
+      },
+      template: null,
+      steps: [],
+      validation: { status: "idle", stepCount: 0, error: "" },
+      validationTimer: null,
+      validationSequence: 0,
+      recording: { status: "idle", runId: null, logs: [], result: null, error: "", source: null, saved: false },
+      runs: null,
+      runsLoading: false,
+      health: null,
+      healthLoading: false,
+      overlayRun: null,
+      toast: "",
+      toastTimer: null,
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function attr(value) { return escapeHtml(value ?? ""); }
+    function yamlString(value) { return JSON.stringify(String(value)); }
+    function finiteNumber(value, fallback) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        ...options,
+        headers: { "content-type": "application/json", ...(options.headers || {}) },
+      });
+      const data = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function viewport() {
+      if (state.stage.viewport === "landing") return { width: 1280, height: 760, label: "4:3 landing · 1280×860" };
+      if (state.stage.viewport === "wide") return { width: 1280, height: 520, label: "16:9 wide · 1280×620" };
+      const width = finiteNumber(state.stage.customWidth, 1280);
+      const height = finiteNumber(state.stage.customHeight, 720);
+      return { width, height, label: `Custom · ${width}×${height + 100}` };
+    }
+
+    function defaultStep(verb) {
+      const target = "page";
+      switch (verb) {
+        case "goto": return { verb, url: state.stage.url || "https://example.com" };
+        case "wait": return { verb, target, condition: "selector", selector: "body", ms: 500, expression: "document.readyState === 'complete'" };
+        case "click": return { verb, target, selector: "button" };
+        case "type": return { verb, target, selector: "input", text: "Hello", perCharMs: 40 };
+        case "scroll": return { verb, target, deltaY: 600 };
+        case "hover": return { verb, target, selector: "button" };
+        case "camera": return { verb, zoom: 1.35, focus: "popup", ms: 600 };
+        case "hold": return { verb, ms: 1000 };
+        case "mark": return { verb, name: "end" };
+        default: return { verb };
+      }
+    }
+
+    function chooseTemplate(name) {
+      state.template = name;
+      state.steps = name === "popup" ? [
+        { verb: "goto", url: state.stage.url || "https://example.com" },
+        { verb: "wait", target: "page", condition: "selector", selector: "body", ms: 500, expression: "document.readyState === 'complete'" },
+        { verb: "openPopup" },
+        { verb: "camera", zoom: 1.35, focus: "popup", ms: 600 },
+        { verb: "hold", ms: 1000 },
+        { verb: "mark", name: "end" },
+      ] : [];
+      state.recording = { status: "idle", runId: null, logs: [], result: null, error: "", source: null, saved: false };
+      scheduleValidation();
+      render();
+    }
+
+    function generatedYaml() {
+      const view = viewport();
+      const title = `${state.manifest?.name || "Extension"} demo`;
+      const lines = [
+        "version: 1",
+        `title: ${yamlString(title)}`,
+        "frame:",
+        `  theme: ${yamlString(state.stage.theme)}`,
+      ];
+      if (state.stage.profileDir || state.stage.seedStorage) {
+        lines.push("profile:");
+        if (state.stage.profileDir) lines.push(`  dir: ${yamlString(state.stage.profileDir)}`);
+        if (state.stage.seedStorage) lines.push(`  seedStorage: ${yamlString(state.stage.seedStorage)}`);
+      }
+      lines.push(
+        "viewport:",
+        `  width: ${view.width}`,
+        `  height: ${view.height}`,
+        "  scale: 1",
+        "extension:",
+        `  path: ${yamlString(state.extensionPath || "")}`,
+        `  popupPath: ${yamlString(state.manifest?.popup || "popup.html")}`,
+        "  popup:",
+        "    width: 600",
+        "    height: 600",
+        "    position: right",
+        "cursor:",
+        "  scale: 1",
+        `  ripple: ${state.stage.ripple}`,
+        "  shadow: true",
+        "output:",
+        `  endCard: ${state.stage.endCard}`,
+        "steps:",
+      );
+      if (state.steps.length === 0) lines.push("  []");
+      for (const step of state.steps) {
+        lines.push(`  - verb: ${step.verb}`);
+        switch (step.verb) {
+          case "goto":
+            lines.push(`    url: ${yamlString(step.url)}`);
+            break;
+          case "wait":
+            lines.push(`    target: ${step.target}`);
+            if (step.condition === "ms") lines.push(`    ms: ${finiteNumber(step.ms, 0)}`);
+            else if (step.condition === "expression") lines.push(`    expression: ${yamlString(step.expression)}`);
+            else lines.push(`    selector: ${yamlString(step.selector)}`);
+            break;
+          case "click":
+          case "hover":
+            lines.push(`    target: ${step.target}`, `    selector: ${yamlString(step.selector)}`);
+            break;
+          case "type":
+            lines.push(
+              `    target: ${step.target}`,
+              `    selector: ${yamlString(step.selector)}`,
+              `    text: ${yamlString(step.text)}`,
+              `    perCharMs: ${finiteNumber(step.perCharMs, 40)}`,
+            );
+            break;
+          case "scroll":
+            lines.push(`    target: ${step.target}`, `    deltaY: ${finiteNumber(step.deltaY, 0)}`);
+            break;
+          case "camera":
+            lines.push(
+              `    zoom: ${finiteNumber(step.zoom, 1)}`,
+              `    focus: ${step.focus}`,
+              `    ms: ${finiteNumber(step.ms, 600)}`,
+            );
+            break;
+          case "hold":
+            lines.push(`    ms: ${finiteNumber(step.ms, 0)}`);
+            break;
+          case "mark":
+            lines.push(`    name: ${yamlString(step.name)}`);
+            break;
+        }
+      }
+      return `${lines.join("\n")}\n`;
+    }
+
+    function isValidUrl(value) {
+      try {
+        const url = new URL(value);
+        return url.protocol === "http:" || url.protocol === "https:";
+      } catch { return false; }
+    }
+
+    function showToast(message) {
+      state.toast = message;
+      clearTimeout(state.toastTimer);
+      state.toastTimer = setTimeout(() => { state.toast = ""; render(); }, 1800);
+      render();
+    }
+
+    async function copyYaml() {
+      try {
+        await navigator.clipboard.writeText(generatedYaml());
+        showToast("YAML copied");
+      } catch {
+        showToast("Clipboard unavailable");
+      }
+    }
+
+    function scheduleValidation() {
+      clearTimeout(state.validationTimer);
+      const sequence = ++state.validationSequence;
+      state.validation.status = "checking";
+      updateValidationNode();
+      state.validationTimer = setTimeout(async () => {
+        try {
+          const result = await api("/api/validate", { method: "POST", body: JSON.stringify({ yaml: generatedYaml() }) });
+          if (sequence !== state.validationSequence) return;
+          state.validation = result.ok
+            ? { status: "valid", stepCount: result.stepCount, error: "" }
+            : { status: "invalid", stepCount: 0, error: result.error };
+        } catch (error) {
+          if (sequence !== state.validationSequence) return;
+          state.validation = { status: "invalid", stepCount: 0, error: error.message };
+        }
+        updateValidationNode();
+      }, 400);
+    }
+
+    function validationHtml() {
+      if (state.validation.status === "valid") return `<span class="success-text">valid · ${state.validation.stepCount} steps</span>`;
+      if (state.validation.status === "invalid") return `<span class="danger-text">${escapeHtml(state.validation.error)}</span>`;
+      if (state.validation.status === "checking") return `<span class="muted">checking…</span>`;
+      return `<span class="muted">waiting for edits</span>`;
+    }
+
+    function updateValidationNode() {
+      const node = document.querySelector("#validation-status");
+      if (node) node.innerHTML = validationHtml();
+      const next = document.querySelector("#beats-next");
+      if (next) next.disabled = state.validation.status !== "valid";
+    }
+
+    function navHtml() {
+      return `
+        <aside class="rail">
+          <div class="wordmark">diorama<span>.</span></div>
+          <nav class="nav" aria-label="Studio navigation">
+            <a href="#new" class="${state.route === "new" ? "active" : ""}"><span class="nav-icon">＋</span>New recording</a>
+            <a href="#library" class="${state.route === "library" ? "active" : ""}"><span class="nav-icon">▦</span>Library</a>
+            <a href="#settings" class="${state.route === "settings" ? "active" : ""}"><span class="nav-icon">⚙</span>Settings</a>
+          </nav>
+          <div class="rail-footer">Diorama Studio · v${VERSION}</div>
+        </aside>`;
+    }
+
+    function stepperHtml() {
+      const labels = ["Extension", "Stage", "Beats", "Record"];
+      return `<div class="stepper">${labels.map((label, index) => {
+        const number = index + 1;
+        const status = number < state.step ? "done" : number === state.step ? "active" : "";
+        return `<div class="step-badge ${status}"><span class="step-circle">${number < state.step ? "✓" : number}</span><span>${label}</span></div>`;
+      }).join("")}</div>`;
+    }
+
+    function extensionStepHtml() {
+      let body;
+      if (state.manifestLoading) {
+        body = `<div class="card pick-card"><div><div class="spinner" style="margin:0 auto 12px"></div><p class="muted">Reading manifest…</p></div></div>`;
+      } else if (state.manifestError) {
+        body = `<div class="card"><h2>Couldn’t use this extension</h2><p class="danger-text">${escapeHtml(state.manifestError)}</p><p class="mono small muted">${escapeHtml(state.extensionPath || "")}</p><button class="text-link" data-action="browse-open">pick another</button></div>`;
+      } else if (state.manifest) {
+        const icon = state.manifest.iconPath
+          ? `<img src="/api/icon?path=${encodeURIComponent(state.manifest.iconPath)}" alt="">`
+          : "◇";
+        body = `<div class="card extension-card">
+          <div class="extension-icon">${icon}</div>
+          <div style="min-width:0;flex:1">
+            <h2>${escapeHtml(state.manifest.name)}</h2>
+            <div class="muted mono small" style="overflow-wrap:anywhere">${escapeHtml(state.extensionPath)}</div>
+            <div class="chips">
+              <span class="chip">v${escapeHtml(state.manifest.version)}</span>
+              <span class="chip accent">Manifest v3</span>
+              ${state.manifest.popup
+                ? `<span class="chip success">popup: ${escapeHtml(state.manifest.popup)}</span>`
+                : `<span class="chip warning">no action popup</span>`}
+            </div>
+          </div>
+          <button class="btn secondary" data-action="browse-open">Change</button>
+        </div>`;
+      } else {
+        body = `<div class="card pick-card"><div><h2>Choose your Chrome extension</h2><p class="muted">Select a local folder containing a Manifest v3 extension.</p><button class="btn big" data-action="browse-open">Choose extension folder</button></div></div>`;
+      }
+      return `${body}<div class="wizard-actions"><span></span><button class="btn" data-action="next" ${!state.manifest ? "disabled" : ""}>Continue</button></div>`;
+    }
+
+    function stageStepHtml() {
+      const stage = state.stage;
+      return `<div class="card">
+        <div class="field-grid">
+          <label class="full">Stage URL
+            <input data-stage="url" data-bind="stage-url" type="url" value="${attr(stage.url)}" placeholder="https://…">
+          </label>
+        </div>
+        <div class="section-label">Viewport</div>
+        <div class="segment" aria-label="Viewport">
+          <button class="${stage.viewport === "landing" ? "active" : ""}" data-action="viewport" data-value="landing">4:3 landing (1280×860)</button>
+          <button class="${stage.viewport === "wide" ? "active" : ""}" data-action="viewport" data-value="wide">16:9 wide (1280×620)</button>
+          <button class="${stage.viewport === "custom" ? "active" : ""}" data-action="viewport" data-value="custom">Custom</button>
+        </div>
+        ${stage.viewport === "custom" ? `<div class="field-grid" style="margin-top:14px">
+          <label>Width<input data-stage="customWidth" data-bind="stage-width" type="number" min="1" value="${attr(stage.customWidth)}"></label>
+          <label>Content height<input data-stage="customHeight" data-bind="stage-height" type="number" min="1" value="${attr(stage.customHeight)}"></label>
+          <div class="full muted small">Diorama adds a 100px browser toolbar to the rendered height.</div>
+        </div>` : ""}
+        <div class="section-label">Theme</div>
+        <div class="segment" aria-label="Theme">
+          <button class="${stage.theme === "dark" ? "active" : ""}" data-action="theme" data-value="dark">Dark</button>
+          <button class="${stage.theme === "light" ? "active" : ""}" data-action="theme" data-value="light">Light</button>
+        </div>
+        <details>
+          <summary>Advanced</summary>
+          <div class="field-grid">
+            <label>Profile directory<input data-stage="profileDir" data-bind="stage-profile" value="${attr(stage.profileDir)}" placeholder="Optional path"></label>
+            <label>Seed storage JSON<input data-stage="seedStorage" data-bind="stage-seed" value="${attr(stage.seedStorage)}" placeholder="Optional path"></label>
+            <label class="check-row"><input data-stage="ripple" type="checkbox" ${stage.ripple ? "checked" : ""}> Cursor ripple</label>
+            <label class="check-row"><input data-stage="endCard" type="checkbox" ${stage.endCard ? "checked" : ""}> End card</label>
+          </div>
+        </details>
+      </div>
+      <div class="wizard-actions"><button class="btn secondary" data-action="back">Back</button><button class="btn" data-action="next" ${!isValidUrl(stage.url) ? "disabled" : ""}>Continue</button></div>`;
+    }
+
+    function optionList(items, selected) {
+      return items.map((item) => `<option value="${attr(item)}" ${item === selected ? "selected" : ""}>${escapeHtml(item)}</option>`).join("");
+    }
+
+    function stepField(label, index, key, value, type = "text", extra = "") {
+      return `<label class="${extra.includes("wide") ? "wide" : ""}">${label}<input data-step-index="${index}" data-step-key="${key}" data-bind="step-${index}-${key}" type="${type}" value="${attr(value)}" ${extra.replace("wide", "")}></label>`;
+    }
+
+    function targetField(index, selected) {
+      return `<label>Target<select data-step-index="${index}" data-step-key="target">${optionList(["page", "popup"], selected)}</select></label>`;
+    }
+
+    function contextFields(step, index) {
+      switch (step.verb) {
+        case "goto": return stepField("URL", index, "url", step.url, "url", "wide");
+        case "wait": {
+          const condition = `<label>Wait for<select data-step-index="${index}" data-step-key="condition">${optionList(["selector", "ms", "expression"], step.condition)}</select></label>`;
+          const input = step.condition === "ms"
+            ? stepField("Milliseconds", index, "ms", step.ms, "number", 'min="0"')
+            : step.condition === "expression"
+              ? stepField("Expression", index, "expression", step.expression, "text", "wide")
+              : stepField("Selector", index, "selector", step.selector, "text", "wide");
+          return targetField(index, step.target) + condition + input;
+        }
+        case "click":
+        case "hover": return targetField(index, step.target) + stepField("Selector", index, "selector", step.selector, "text", "wide");
+        case "type": return targetField(index, step.target)
+          + stepField("Selector", index, "selector", step.selector)
+          + stepField("Text", index, "text", step.text, "text", "wide")
+          + stepField("Per character (ms)", index, "perCharMs", step.perCharMs, "number", 'min="0"');
+        case "scroll": return targetField(index, step.target) + stepField("Delta Y", index, "deltaY", step.deltaY, "number");
+        case "camera": return stepField("Zoom", index, "zoom", step.zoom, "number", 'min="1" max="2.5" step="0.05"')
+          + `<label>Focus<select data-step-index="${index}" data-step-key="focus">${optionList(["page", "popup", "none"], step.focus)}</select></label>`
+          + stepField("Duration (ms)", index, "ms", step.ms, "number", 'min="0"');
+        case "hold": return stepField("Milliseconds", index, "ms", step.ms, "number", 'min="0"');
+        case "mark": return stepField("Name", index, "name", step.name, "text", "wide");
+        default: return `<div class="muted small wide">No configuration needed.</div>`;
+      }
+    }
+
+    function beatsStepHtml() {
+      if (!state.template) {
+        return `<div class="card pick-card"><div><h2>Start with a template</h2><p class="muted">Choose a complete popup flow or begin with an empty beat sheet.</p><div class="segment"><button data-action="template" data-value="popup">Popup demo</button><button data-action="template" data-value="blank">Blank</button></div></div></div>
+          <div class="wizard-actions"><button class="btn secondary" data-action="back">Back</button><button class="btn" disabled>Continue</button></div>`;
+      }
+      const steps = state.steps.map((step, index) => `<div class="step-row">
+        <div class="step-row-head">
+          <div style="display:flex;align-items:center;gap:10px;flex:1"><span class="step-number">${String(index + 1).padStart(2, "0")}</span><select aria-label="Verb" data-step-index="${index}" data-step-key="verb" style="max-width:170px">${optionList(verbs, step.verb)}</select></div>
+          <div class="step-controls">
+            <button class="btn secondary icon" title="Move up" aria-label="Move step up" data-action="step-up" data-index="${index}" ${index === 0 ? "disabled" : ""}>↑</button>
+            <button class="btn secondary icon" title="Move down" aria-label="Move step down" data-action="step-down" data-index="${index}" ${index === state.steps.length - 1 ? "disabled" : ""}>↓</button>
+            <button class="btn danger icon" title="Delete" aria-label="Delete step" data-action="step-delete" data-index="${index}">×</button>
+          </div>
+        </div>
+        <div class="step-fields">${contextFields(step, index)}</div>
+      </div>`).join("");
+      return `<div class="beats-layout">
+        <div>
+          <div class="steps">${steps || `<div class="card empty"><p class="muted">No steps yet.</p></div>`}</div>
+          <button class="btn secondary" style="margin-top:12px" data-action="step-add">＋ Add step</button>
+        </div>
+        <div class="card preview">
+          <div class="preview-head"><h3>YAML preview</h3><button class="btn secondary" data-action="copy-yaml">Copy</button></div>
+          <pre id="yaml-preview">${escapeHtml(generatedYaml())}</pre>
+          <div class="validation" id="validation-status">${validationHtml()}</div>
+        </div>
+      </div>
+      <div class="wizard-actions"><button class="btn secondary" data-action="back">Back</button><button class="btn" id="beats-next" data-action="next" ${state.validation.status !== "valid" ? "disabled" : ""}>Continue</button></div>`;
+    }
+
+    function formatDuration(ms) {
+      if (!Number.isFinite(ms)) return "—";
+      const seconds = ms / 1000;
+      return seconds < 60 ? `${seconds.toFixed(1)}s` : `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+    }
+
+    function logHtml() {
+      return `<div class="log" id="record-log">${escapeHtml(state.recording.logs.join("\n") || "Waiting for the recorder…")}</div>`;
+    }
+
+    function recordStepHtml() {
+      const view = viewport();
+      const rec = state.recording;
+      const summary = `<div class="card"><h2>Ready to record</h2><dl class="summary-list">
+        <dt>Extension</dt><dd>${escapeHtml(state.manifest?.name || "—")}</dd>
+        <dt>Stage URL</dt><dd class="mono small">${escapeHtml(state.stage.url)}</dd>
+        <dt>Viewport</dt><dd>${escapeHtml(view.label)}</dd>
+        <dt>Beats</dt><dd>${state.steps.length} steps</dd>
+      </dl></div>`;
+      if (rec.status === "idle") {
+        return `${summary}<div class="record-zone"><button class="btn big" data-action="record">● Record</button></div>
+          <div class="wizard-actions"><button class="btn secondary" data-action="back">Back</button><span></span></div>`;
+      }
+      if (rec.status === "starting" || rec.status === "running") {
+        return `${summary}<div class="record-zone"><button class="btn big" disabled><span class="spinner"></span>Recording…</button>${logHtml()}</div>`;
+      }
+      if (rec.status === "error") {
+        return `${summary}<div class="card" style="margin-top:14px;border-color:#5c2929"><h2 class="danger-text">Recording failed</h2><p>${escapeHtml(rec.error)}</p>${logHtml()}<div class="button-row" style="margin-top:14px"><button class="btn" data-action="record-again">Try again</button><button class="btn secondary" data-action="back">Back to beats</button></div></div>`;
+      }
+      const result = rec.result;
+      const formats = Array.isArray(result.formats) && result.formats.length
+        ? `Formats: ${result.formats.map((item) => escapeHtml(item.name)).join(", ")}`
+        : "Formats: standard MP4";
+      return `${summary}<div class="card" style="margin-top:14px"><h2 class="success-text">Recording complete</h2>
+        <video class="result-video" controls autoplay muted loop poster="${attr(result.posterUrl)}" src="${attr(result.mp4Url)}"></video>
+        <div class="result-meta"><span>${formatDuration(result.durationMs)}</span><span>${formats}</span><a href="${attr(result.posterUrl)}" target="_blank">Open poster</a></div>
+        <div class="button-row"><button class="btn" data-action="record-again">Record again</button><button class="btn secondary" data-action="copy-yaml">Copy YAML</button><button class="btn secondary" data-action="save-project" ${rec.saved ? "disabled" : ""}>${rec.saved ? "Saved" : "Save to Library"}</button></div>
+      </div>`;
+    }
+
+    function newPageHtml() {
+      const descriptions = [
+        ["New recording", "Choose the extension you want to turn into a polished demo."],
+        ["Configure the stage", "Set the page, frame, and recording environment."],
+        ["Edit beats", "Build the sequence Diorama will perform and capture."],
+        ["Record", "Review the setup, then watch the run progress live."],
+      ];
+      const [title, description] = descriptions[state.step - 1];
+      const stepHtml = state.step === 1 ? extensionStepHtml()
+        : state.step === 2 ? stageStepHtml()
+          : state.step === 3 ? beatsStepHtml()
+            : recordStepHtml();
+      return `<div class="content"><header class="page-head"><h1>${title}</h1><p class="muted">${description}</p></header>${stepperHtml()}${stepHtml}</div>`;
+    }
+
+    function libraryPageHtml() {
+      let content;
+      if (state.runsLoading || state.runs === null) {
+        content = `<div class="card empty"><div class="spinner" style="margin:0 auto 12px"></div><span class="muted">Loading runs…</span></div>`;
+      } else if (state.runs.length === 0) {
+        content = `<div class="card empty"><h2>No recordings yet</h2><p class="muted">Your completed runs will appear here.</p><a class="btn" href="#new">Create a recording</a></div>`;
+      } else {
+        content = `<div class="library-grid">${state.runs.map((run) => `<article class="card run-card" data-action="open-run" data-run-id="${attr(run.id)}">
+          <div class="thumb">${run.posterUrl ? `<img src="${attr(run.posterUrl)}" alt="">` : `<span>No poster</span>`}</div>
+          <div class="run-info"><h3>${escapeHtml(run.title)}</h3><div class="run-meta"><span>${new Date(run.createdAt).toLocaleString()}</span><span>${run.durationMs ? formatDuration(run.durationMs) : run.status}</span></div></div>
+        </article>`).join("")}</div>`;
+      }
+      return `<div class="content"><header class="page-head"><h1>Library</h1><p class="muted">Past recordings from this machine.</p></header>${content}</div>`;
+    }
+
+    function settingsPageHtml() {
+      let content;
+      if (state.healthLoading || state.health === null) {
+        content = `<div class="card empty"><div class="spinner" style="margin:0 auto 12px"></div><span class="muted">Running checks…</span></div>`;
+      } else {
+        content = `<div class="card doctor-list">${state.health.checks.map((check) => `<div class="doctor-row"><span class="status-dot ${check.ok ? "ok" : ""}"></span><strong>${escapeHtml(check.name)}</strong><span class="muted small">${check.ok ? "Ready" : escapeHtml(check.hint)}</span></div>`).join("")}</div>
+          <div class="card"><h3>Studio state</h3><div class="mono small muted" style="overflow-wrap:anywhere">${escapeHtml(state.health.stateDir || "~/.diorama")}</div></div>`;
+      }
+      return `<div class="content"><header class="page-head"><h1>Settings</h1><p class="muted">Local tools and storage used by Studio.</p></header>${content}</div>`;
+    }
+
+    function breadcrumbsHtml(path) {
+      const pieces = path.split("/").filter(Boolean);
+      const paths = pieces.map((_, index) => `/${pieces.slice(0, index + 1).join("/")}`);
+      return `<button class="crumb" data-action="browse-path" data-path="/">/</button>${pieces.map((piece, index) => `<span class="muted">/</span><button class="crumb" data-action="browse-path" data-path="${attr(paths[index])}">${escapeHtml(piece)}</button>`).join("")}`;
+    }
+
+    function browserModalHtml() {
+      if (!state.browser.open) return "";
+      const data = state.browser.data;
+      let list = `<div class="empty muted">Loading folders…</div>`;
+      if (state.browser.error) list = `<div class="empty danger-text">${escapeHtml(state.browser.error)}</div>`;
+      else if (data) list = `${data.parent ? `<button class="folder-row" data-action="browse-path" data-path="${attr(data.parent)}"><span>↰</span><span class="folder-name muted">Parent folder</span></button>` : ""}${data.entries.map((entry) => `<button class="folder-row" data-action="browse-path" data-path="${attr(entry.path)}"><span>▸</span><span class="folder-name">${escapeHtml(entry.name)}</span>${entry.hasManifest ? `<span class="chip accent">manifest</span>` : ""}</button>`).join("") || `<div class="empty muted">No folders here.</div>`}`;
+      return `<div class="modal-shell" role="dialog" aria-modal="true" aria-label="Choose extension folder"><div class="modal">
+        <div class="modal-head"><div class="breadcrumbs">${data ? breadcrumbsHtml(data.path) : "Choose folder"}</div><button class="btn secondary icon" data-action="browse-close" aria-label="Close">×</button></div>
+        <div class="modal-body">${list}</div>
+        <div class="modal-foot"><span class="mono small muted" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${data ? escapeHtml(data.path) : ""}</span><button class="btn" data-action="browse-use" ${!data ? "disabled" : ""}>Use this folder</button></div>
+      </div></div>`;
+    }
+
+    function playerOverlayHtml() {
+      const run = state.overlayRun;
+      if (!run) return "";
+      return `<div class="modal-shell" data-action="close-run"><button class="btn secondary icon overlay-close" data-action="close-run" aria-label="Close player">×</button><div class="overlay-player" data-action="player-content"><video controls autoplay src="${attr(run.mp4Url)}" poster="${attr(run.posterUrl || "")}"></video></div></div>`;
+    }
+
+    function render(preserveFocus = false) {
+      let focus = null;
+      if (preserveFocus && document.activeElement?.dataset?.bind) {
+        focus = {
+          bind: document.activeElement.dataset.bind,
+          start: document.activeElement.selectionStart,
+          end: document.activeElement.selectionEnd,
+        };
+      }
+      const page = state.route === "library" ? libraryPageHtml()
+        : state.route === "settings" ? settingsPageHtml()
+          : newPageHtml();
+      app.innerHTML = `${navHtml()}<main>${page}</main>${browserModalHtml()}${playerOverlayHtml()}${state.toast ? `<div class="toast">${escapeHtml(state.toast)}</div>` : ""}`;
+      if (focus) {
+        const node = document.querySelector(`[data-bind="${CSS.escape(focus.bind)}"]`);
+        if (node) {
+          node.focus();
+          if (typeof node.setSelectionRange === "function" && focus.start !== null) node.setSelectionRange(focus.start, focus.end);
+        }
+      }
+      const log = document.querySelector("#record-log");
+      if (log) log.scrollTop = log.scrollHeight;
+    }
+
+    async function browse(path) {
+      state.browser.loading = true;
+      state.browser.error = null;
+      render();
+      try {
+        const suffix = path ? `?path=${encodeURIComponent(path)}` : "";
+        state.browser.data = await api(`/api/browse${suffix}`);
+      } catch (error) {
+        state.browser.error = error.message;
+      } finally {
+        state.browser.loading = false;
+        render();
+      }
+    }
+
+    async function useExtension(path) {
+      state.browser.open = false;
+      state.extensionPath = path;
+      state.manifest = null;
+      state.manifestError = null;
+      state.manifestLoading = true;
+      render();
+      try {
+        const response = await fetch(`/api/manifest?path=${encodeURIComponent(path)}`);
+        const result = await response.json();
+        if (!result.ok) throw new Error(result.error || "Invalid extension manifest");
+        state.manifest = result;
+      } catch (error) {
+        state.manifestError = error.message;
+      } finally {
+        state.manifestLoading = false;
+        scheduleValidation();
+        render();
+      }
+    }
+
+    async function startRecording() {
+      if (state.recording.source) state.recording.source.close();
+      state.recording = { status: "starting", runId: null, logs: [], result: null, error: "", source: null, saved: false };
+      render();
+      try {
+        const result = await api("/api/record", { method: "POST", body: JSON.stringify({ yaml: generatedYaml() }) });
+        state.recording.runId = result.runId;
+        state.recording.status = "running";
+        render();
+        const source = new EventSource(`/api/record/${encodeURIComponent(result.runId)}/stream`);
+        state.recording.source = source;
+        source.addEventListener("log", (event) => {
+          const payload = JSON.parse(event.data);
+          state.recording.logs.push(payload.line);
+          const log = document.querySelector("#record-log");
+          if (log) {
+            log.textContent = state.recording.logs.join("\n");
+            log.scrollTop = log.scrollHeight;
+          }
+        });
+        source.addEventListener("done", (event) => {
+          source.close();
+          state.recording.status = "done";
+          state.recording.result = JSON.parse(event.data);
+          state.runs = null;
+          render();
+        });
+        source.addEventListener("error", (event) => {
+          if (!event.data) return;
+          source.close();
+          const payload = JSON.parse(event.data);
+          state.recording.status = "error";
+          state.recording.error = payload.message;
+          render();
+        });
+      } catch (error) {
+        state.recording.status = "error";
+        state.recording.error = error.message;
+        render();
+      }
+    }
+
+    async function saveProject() {
+      try {
+        await api("/api/projects", {
+          method: "POST",
+          body: JSON.stringify({
+            name: `${state.manifest.name} demo`,
+            extensionPath: state.extensionPath,
+            sheetYaml: generatedYaml(),
+          }),
+        });
+        state.recording.saved = true;
+        showToast("Saved to Library");
+      } catch (error) { showToast(error.message); }
+    }
+
+    async function loadRuns() {
+      if (state.runsLoading) return;
+      state.runsLoading = true;
+      render();
+      try { state.runs = await api("/api/runs"); }
+      catch (error) { state.runs = []; showToast(error.message); }
+      finally { state.runsLoading = false; render(); }
+    }
+
+    async function loadHealth() {
+      if (state.healthLoading) return;
+      state.healthLoading = true;
+      render();
+      try { state.health = await api("/api/health"); }
+      catch (error) { state.health = { checks: [], stateDir: error.message }; }
+      finally { state.healthLoading = false; render(); }
+    }
+
+    app.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-action]");
+      if (!target) return;
+      const action = target.dataset.action;
+      if (action === "browse-open") {
+        state.browser.open = true;
+        state.browser.data = null;
+        void browse();
+      } else if (action === "browse-close") {
+        state.browser.open = false; render();
+      } else if (action === "browse-path") {
+        void browse(target.dataset.path);
+      } else if (action === "browse-use" && state.browser.data) {
+        void useExtension(state.browser.data.path);
+      } else if (action === "next") {
+        state.step = Math.min(4, state.step + 1);
+        if (state.step === 3 && state.template) scheduleValidation();
+        render();
+      } else if (action === "back") {
+        state.step = Math.max(1, state.step - 1); render();
+      } else if (action === "viewport") {
+        state.stage.viewport = target.dataset.value; scheduleValidation(); render();
+      } else if (action === "theme") {
+        state.stage.theme = target.dataset.value; scheduleValidation(); render();
+      } else if (action === "template") {
+        chooseTemplate(target.dataset.value);
+      } else if (action === "step-add") {
+        state.steps.push(defaultStep("hold")); scheduleValidation(); render();
+      } else if (action === "step-delete") {
+        state.steps.splice(Number(target.dataset.index), 1); scheduleValidation(); render();
+      } else if (action === "step-up" || action === "step-down") {
+        const index = Number(target.dataset.index);
+        const other = action === "step-up" ? index - 1 : index + 1;
+        [state.steps[index], state.steps[other]] = [state.steps[other], state.steps[index]];
+        scheduleValidation(); render();
+      } else if (action === "copy-yaml") {
+        void copyYaml();
+      } else if (action === "record") {
+        void startRecording();
+      } else if (action === "record-again") {
+        state.recording.source?.close();
+        state.recording = { status: "idle", runId: null, logs: [], result: null, error: "", source: null, saved: false };
+        render();
+      } else if (action === "save-project") {
+        void saveProject();
+      } else if (action === "open-run") {
+        const run = state.runs.find((item) => item.id === target.dataset.runId);
+        if (run?.mp4Url) { state.overlayRun = run; render(); }
+      } else if (action === "close-run") {
+        state.overlayRun = null; render();
+      } else if (action === "player-content") {
+        event.stopPropagation();
+      }
+    });
+
+    app.addEventListener("input", (event) => {
+      const input = event.target;
+      if (input.tagName === "SELECT" || input.type === "checkbox") return;
+      if (input.dataset.stage) {
+        const key = input.dataset.stage;
+        state.stage[key] = input.value;
+        scheduleValidation();
+        const next = document.querySelector("[data-action='next']");
+        if (key === "url" && next) next.disabled = !isValidUrl(input.value);
+      } else if (input.dataset.stepIndex !== undefined) {
+        const index = Number(input.dataset.stepIndex);
+        state.steps[index][input.dataset.stepKey] = input.value;
+        const preview = document.querySelector("#yaml-preview");
+        if (preview) preview.textContent = generatedYaml();
+        scheduleValidation();
+      }
+    });
+
+    app.addEventListener("change", (event) => {
+      const input = event.target;
+      if (input.dataset.stage && input.type === "checkbox") {
+        state.stage[input.dataset.stage] = input.checked;
+        scheduleValidation(); render();
+      } else if (input.dataset.stepIndex !== undefined) {
+        const index = Number(input.dataset.stepIndex);
+        const key = input.dataset.stepKey;
+        if (key === "verb") state.steps[index] = defaultStep(input.value);
+        else state.steps[index][key] = input.value;
+        scheduleValidation(); render();
+      }
+    });
+
+    window.addEventListener("hashchange", () => {
+      const route = location.hash.slice(1);
+      state.route = ["new", "library", "settings"].includes(route) ? route : "new";
+      state.overlayRun = null;
+      render();
+      if (state.route === "library" && state.runs === null) void loadRuns();
+      if (state.route === "settings" && state.health === null) void loadHealth();
+    });
+
+    if (!["new", "library", "settings"].includes(state.route)) state.route = "new";
+    render();
+    scheduleValidation();
+    if (state.route === "library") void loadRuns();
+    if (state.route === "settings") void loadHealth();
+  </script>
+</body>
+</html>

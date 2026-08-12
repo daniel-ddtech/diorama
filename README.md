@@ -117,6 +117,18 @@ zooms between 1 and 2.5 with an eased move over `ms` milliseconds, focused on
 
 Selectors are CSS, or `text=...` for a case-insensitive match on visible text.
 
+## Studio (visual UI)
+
+```bash
+diorama-studio            # opens http://localhost:4517
+```
+
+A local web app over the same engine: pick your extension folder (manifest
+validated instantly), set the stage URL, viewport and theme, build the steps
+in an editor with a live YAML preview, then record with streaming progress
+and watch the result inline. Past runs live in the Library. Everything the
+studio does round-trips through the same beat-sheet YAML the CLI and MCP use.
+
 ## MCP server (for agents)
 
 ```bash
