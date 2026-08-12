@@ -81,6 +81,7 @@ steps:
       typeof entry.description === "string"
       && typeof entry.inputSchema === "object"
     ))).toBe(true);
+    expect(tools.launch_session!.inputSchema.required).toEqual(["url"]);
 
     const callResult = responses[2]!.result as {
       content: Array<{ type: string; text: string }>;

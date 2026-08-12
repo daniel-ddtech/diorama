@@ -146,9 +146,16 @@ export async function recordDemo(
 
   const sheet = loadBeatSheet(sheetPath);
   const sheetDir = dirname(sheetPath);
-  const extensionDir = resolve(sheetDir, sheet.extension.path);
-  const { manifest, iconPath } = await loadExtensionManifest(extensionDir);
+  const extensionDir = sheet.extension === undefined
+    ? undefined
+    : resolve(sheetDir, sheet.extension.path);
+  const extensionAssets = extensionDir === undefined
+    ? undefined
+    : await loadExtensionManifest(extensionDir);
   const configuredSeedStorage = options.seedStorage ?? sheet.profile.seedStorage;
+  if (configuredSeedStorage !== undefined && extensionDir === undefined) {
+    throw new Error("seedStorage requires an extension block");
+  }
   const seedStorage = configuredSeedStorage === undefined
     ? undefined
     : await loadSeedStorage(resolve(sheetDir, configuredSeedStorage));
@@ -180,11 +187,17 @@ export async function recordDemo(
   let skipped: Record<string, number> = {};
   try {
     log("Launching Chrome");
-    engine = await Engine.launch({ extensionDir, userDataDir: profileDir });
-    const extension = await engine.findExtension(
-      new RegExp(escapeRegExp(manifest.name), "i"),
-    );
+    engine = await Engine.launch({
+      userDataDir: profileDir,
+      ...(extensionDir === undefined ? {} : { extensionDir }),
+    });
+    const extension = extensionAssets === undefined
+      ? undefined
+      : await engine.findExtension(
+        new RegExp(escapeRegExp(extensionAssets.manifest.name), "i"),
+      );
     if (seedStorage !== undefined) {
+      if (!extension) throw new Error("seedStorage requires an extension block");
       log("Seeding extension storage");
       await engine.seedStorage(extension.swSession, seedStorage);
     }
@@ -224,13 +237,15 @@ export async function recordDemo(
         },
         cursor: sheet.cursor,
         viewport: sheet.viewport,
-        extension: { popup: sheet.extension.popup },
+        ...(sheet.extension === undefined
+          ? {}
+          : { extension: { popup: sheet.extension.popup } }),
         output: {
           posterAt: sheet.output.posterAt,
           formats: sheet.output.formats,
         },
       },
-      iconPath,
+      ...(extensionAssets === undefined ? {} : { iconPath: extensionAssets.iconPath }),
       outPath,
       posterPath,
       fps,

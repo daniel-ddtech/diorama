@@ -131,7 +131,7 @@ export const beatSheetSchema = z.object({
       autoSize: z.boolean().default(false),
       position: z.enum(["right", "left"]).default("right"),
     }).default({}),
-  }),
+  }).optional(),
   cursor: z.object({
     scale: z.number().positive().max(3).default(1),
     ripple: z.boolean().default(true),
@@ -161,6 +161,24 @@ export const beatSheetSchema = z.object({
     })).default([]),
   }).default({}),
   steps: z.array(beatStepSchema),
+}).superRefine((sheet, context) => {
+  if (sheet.extension !== undefined) return;
+
+  for (const [stepIndex, step] of sheet.steps.entries()) {
+    if (step.verb === "openPopup" || step.verb === "closePopup") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["steps", stepIndex],
+        message: `${step.verb} requires an extension block`,
+      });
+    } else if ("target" in step && step.target === "popup") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["steps", stepIndex, "target"],
+        message: 'target "popup" requires an extension block',
+      });
+    }
+  }
 });
 
 export type BeatStep = z.infer<typeof beatStepSchema>;

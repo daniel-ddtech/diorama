@@ -46,8 +46,8 @@ export interface CameraTrackOptions {
   width: number;
   height: number;
   toolbarH: number;
-  popupOrigin: Point;
-  popupSize: {
+  popupOrigin?: Point;
+  popupSize?: {
     width: number;
     height: number;
   };
@@ -236,7 +236,11 @@ export function cameraTrack(
     if (event.focus === "page") {
       nextFocusX = 0.5;
       nextFocusY = (options.toolbarH + options.height / 2) / outputHeight;
-    } else if (event.focus === "popup") {
+    } else if (
+      event.focus === "popup"
+      && options.popupOrigin !== undefined
+      && options.popupSize !== undefined
+    ) {
       nextFocusX = (options.popupOrigin.x + options.popupSize.width / 2)
         / options.width;
       nextFocusY = (options.popupOrigin.y + options.popupSize.height / 2)

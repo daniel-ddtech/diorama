@@ -21,4 +21,11 @@ describe("launchChrome", () => {
     expect(args).toContain("--load-extension=/tmp/diorama-extension");
     expect(args).toContain("--disable-extensions-except=/tmp/diorama-extension");
   });
+
+  it("omits unpacked-extension arguments when no extension is configured", () => {
+    const args = buildArgs({ userDataDir: "/tmp/diorama-profile" });
+
+    expect(args).not.toContainEqual(expect.stringMatching(/^--load-extension=/));
+    expect(args).not.toContainEqual(expect.stringMatching(/^--disable-extensions-except=/));
+  });
 });

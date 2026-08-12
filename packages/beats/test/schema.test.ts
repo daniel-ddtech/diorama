@@ -25,6 +25,40 @@ steps:
 `;
 
 describe("parseBeatSheet", () => {
+  it("accepts a sheet without an extension", () => {
+    const sheet = parseBeatSheet(`
+version: 1
+title: plain page
+viewport: { width: 1280, height: 720 }
+steps:
+  - { verb: goto, url: https://example.com }
+  - { verb: click, selector: button }
+  - { verb: camera, zoom: 1.25, focus: page }
+`);
+
+    expect(sheet.extension).toBeUndefined();
+  });
+
+  it("rejects openPopup without an extension", () => {
+    expect(() => parseBeatSheet(`
+version: 1
+title: plain page
+viewport: { width: 1280, height: 720 }
+steps:
+  - { verb: openPopup }
+`)).toThrow(/openPopup requires an extension block/);
+  });
+
+  it('rejects target "popup" without an extension', () => {
+    expect(() => parseBeatSheet(`
+version: 1
+title: plain page
+viewport: { width: 1280, height: 720 }
+steps:
+  - { verb: click, target: popup, selector: button }
+`)).toThrow(/target "popup" requires an extension block/);
+  });
+
   it("parses a valid sheet and applies defaults", () => {
     const sheet = parseBeatSheet(baseSheet);
 

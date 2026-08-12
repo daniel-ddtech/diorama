@@ -161,7 +161,7 @@ async function waitForSelector(
 
 export async function runBeats(
   engine: Engine,
-  ext: ExtensionTarget,
+  ext: ExtensionTarget | undefined,
   sheet: BeatSheet,
   opts: RunBeatsOptions = {},
 ): Promise<BeatRunResult> {
@@ -252,7 +252,8 @@ export async function runBeats(
         const session = sessionFor(step.target);
         const dimensions = step.target === "page"
           ? sheet.viewport
-          : sheet.extension.popup;
+          : sheet.extension?.popup;
+        if (!dimensions) throw new Error('target "popup" requires an extension block');
         const x = dimensions.width / 2;
         const y = dimensions.height / 2;
         for (let scrollIndex = 0; scrollIndex < step.steps; scrollIndex += 1) {
@@ -287,6 +288,9 @@ export async function runBeats(
       }
 
       case "openPopup": {
+        if (!ext || !sheet.extension) {
+          throw new Error("openPopup requires an extension block");
+        }
         if (popup) throw new Error("A popup is already open");
         requireStage();
         if (!lastGotoUrl) throw new Error("A goto step must run before openPopup");

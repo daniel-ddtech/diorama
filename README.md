@@ -1,7 +1,9 @@
 # Diorama
 
-Reproducible demo videos for Chrome extensions. You describe the demo in a
-YAML beat sheet, Diorama records it.
+Reproducible demo videos for Chrome extensions and web flows. You describe
+the demo in a YAML beat sheet, Diorama records it. The `extension:` block is
+optional: without it Diorama records any website flow in the same drawn
+browser frame.
 
 ```bash
 diorama record demo.beats.yaml

@@ -52,7 +52,7 @@ export interface RenderSheet {
     height: number;
     scale: number;
   };
-  extension: {
+  extension?: {
     popup: {
       width: number;
       height: number;
@@ -81,7 +81,7 @@ export interface OutputFormat {
 export interface RenderDemoOptions {
   runDir: string;
   sheet: RenderSheet;
-  iconPath: string;
+  iconPath?: string;
   outPath: string;
   posterPath: string;
   fps?: number;
@@ -259,21 +259,29 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const durationMs = Math.max(0, stage.times[stage.times.length - 1]! - t0)
     + stageTailMs;
 
-  const openPopupEvent = eventFile.events.find((event) => event.verb === "openPopup");
-  const configuredPopup = options.sheet.extension.popup;
-  const popupSize = {
-    width: Number.isFinite(openPopupEvent?.width) && openPopupEvent!.width! > 0
-      ? openPopupEvent!.width!
-      : configuredPopup.width,
-    height: Number.isFinite(openPopupEvent?.height) && openPopupEvent!.height! > 0
-      ? openPopupEvent!.height!
-      : configuredPopup.height,
-  };
-  const popupPosition = openPopupEvent?.position ?? configuredPopup.position ?? "right";
-  const popupOrigin = {
-    x: popupPosition === "left" ? 24 : viewport.width - popupSize.width - 24,
-    y: TOOLBAR_HEIGHT + 16,
-  };
+  const popupLayout = popup === undefined ? undefined : (() => {
+    const configuredPopup = options.sheet.extension?.popup;
+    if (!configuredPopup) {
+      throw new Error("A popup capture stream requires extension popup configuration");
+    }
+    const openPopupEvent = eventFile.events.find((event) => event.verb === "openPopup");
+    const size = {
+      width: Number.isFinite(openPopupEvent?.width) && openPopupEvent!.width! > 0
+        ? openPopupEvent!.width!
+        : configuredPopup.width,
+      height: Number.isFinite(openPopupEvent?.height) && openPopupEvent!.height! > 0
+        ? openPopupEvent!.height!
+        : configuredPopup.height,
+    };
+    const position = openPopupEvent?.position ?? configuredPopup.position ?? "right";
+    return {
+      size,
+      origin: {
+        x: position === "left" ? 24 : viewport.width - size.width - 24,
+        y: TOOLBAR_HEIGHT + 16,
+      },
+    };
+  })();
   const cursorOptions = options.sheet.cursor ?? {
     scale: 1,
     ripple: false,
@@ -282,7 +290,7 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const cursorSegments = cursorPath(eventFile.events, {
     enterMs: 0,
     stageOrigin: { x: 0, y: TOOLBAR_HEIGHT },
-    popupOrigin,
+    ...(popupLayout === undefined ? {} : { popupOrigin: popupLayout.origin }),
   });
   const outputCssHeight = viewport.height + TOOLBAR_HEIGHT;
   const outputWidth = Math.round(viewport.width * viewport.scale);
@@ -291,8 +299,10 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     width: viewport.width,
     height: viewport.height,
     toolbarH: TOOLBAR_HEIGHT,
-    popupOrigin,
-    popupSize,
+    ...(popupLayout === undefined ? {} : {
+      popupOrigin: popupLayout.origin,
+      popupSize: popupLayout.size,
+    }),
   });
 
   const allRippleEvents = cursorOptions.ripple
@@ -311,8 +321,11 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const rippleDir = join(runDir, "ripple");
   const rippleFramesPath = join(rippleDir, "%02d.png");
   const ripples = rippleEvents.map((event) => {
+    if (event.target === "popup" && popupLayout === undefined) {
+      throw new Error("A popup event requires a popup capture stream");
+    }
     const origin = event.target === "popup"
-      ? popupOrigin
+      ? popupLayout!.origin
       : { x: 0, y: TOOLBAR_HEIGHT };
     return {
       framesPath: rippleFramesPath,
@@ -331,7 +344,7 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
       ...(frame.themePath === undefined ? {} : { themePath: frame.themePath }),
       title: frame.title ?? options.sheet.title,
       url: frame.url ?? gotoUrl,
-      iconPath: options.iconPath,
+      ...(options.iconPath === undefined ? {} : { iconPath: options.iconPath }),
       width: viewport.width,
       height: outputCssHeight,
       scale: viewport.scale,
@@ -378,11 +391,11 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     frameChromePath: chromePath,
     stageConcatPath,
     cursorPath: cursorPngPath,
-    ...(popup ? {
+    ...(popup && popupLayout ? {
       popupConcatPath,
       popup: {
-        x: popupOrigin.x * viewport.scale,
-        y: popupOrigin.y * viewport.scale,
+        x: popupLayout.origin.x * viewport.scale,
+        y: popupLayout.origin.y * viewport.scale,
         // Anchor the popup stream at its first CAPTURED frame, not the
         // openPopup event: early popup screenshots can fail while the target
         // navigates, and shifting the stream to the event time would play the

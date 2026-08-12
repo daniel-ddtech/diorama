@@ -107,6 +107,25 @@ steps: []
       await rm(tempDir, { recursive: true, force: true });
     }
   });
+
+  it("rejects extension storage seeding without an extension block", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "diorama-cli-plain-seed-test-"));
+    const sheetPath = join(tempDir, "demo.beats.yaml");
+    try {
+      await writeFile(sheetPath, `
+version: 1
+title: plain seed error
+viewport: { width: 800, height: 600 }
+profile: { seedStorage: ./storage.json }
+steps: []
+`, "utf8");
+
+      await expect(recordCommand([sheetPath], { log: () => {} }))
+        .rejects.toThrow(/seedStorage requires an extension block/);
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("mcp command", () => {

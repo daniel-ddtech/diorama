@@ -54,6 +54,37 @@ function closeServer(server: Server): Promise<void> {
 }
 
 describe.skipIf(!integrationEnabled)("CLI record integration", () => {
+  it("records a plain local page with a click and camera zoom", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "diorama-cli-plain-record-it-"));
+    const outDir = join(tempDir, "out");
+    const sheetPath = join(tempDir, "plain.beats.yaml");
+    const { server, url } = await serveStage();
+    try {
+      await writeFile(sheetPath, `
+version: 1
+title: Plain page integration
+viewport: { width: 800, height: 600, scale: 1 }
+output: { holdTailMs: 200, endCard: false }
+steps:
+  - { verb: goto, url: ${JSON.stringify(url)} }
+  - { verb: wait, selector: button }
+  - { verb: click, selector: "text=Record me" }
+  - { verb: camera, zoom: 1.3, focus: page, ms: 200 }
+  - { verb: mark, name: end }
+`, "utf8");
+
+      const result = await recordCommand(
+        [sheetPath, "--out", outDir],
+        { log: () => {} },
+      );
+      expect((await stat(result.mp4Path)).size).toBeGreaterThan(0);
+      expect((await stat(result.posterPath)).size).toBeGreaterThan(0);
+    } finally {
+      await closeServer(server);
+      await rm(tempDir, { recursive: true, force: true });
+    }
+  }, 120_000);
+
   it("records a local stage and extension popup to an mp4 and poster", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "diorama-cli-record-it-"));
     const outDir = join(tempDir, "out");

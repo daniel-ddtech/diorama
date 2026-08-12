@@ -22,10 +22,10 @@ import type { ToolDefinition, ToolRegistry } from "./server.js";
 
 interface SessionState {
   engine: Engine;
-  extensionId: string;
-  swSession: string;
+  extensionId?: string;
+  swSession?: string;
   stage: StageTarget;
-  stageTabId: number;
+  stageTabId?: number;
   popup?: StageTarget;
   popupPath?: string;
   viewport: ViewportOptions;
@@ -222,7 +222,7 @@ export function createToolRegistry(): ToolRegistry {
 
     launch_session: tool(
       "launch_session",
-      "Launch Chrome with an extension and create a stage tab.",
+      "Launch Chrome, optionally with an extension, and create a stage tab.",
       {
         type: "object",
         properties: {
@@ -238,38 +238,52 @@ export function createToolRegistry(): ToolRegistry {
             additionalProperties: false,
           },
         },
-        required: ["extensionPath", "url"],
+        required: ["url"],
         additionalProperties: false,
       },
       async (args) => {
-        const extensionPath = resolve(requiredString(args, "extensionPath"));
+        const configuredExtensionPath = optionalString(args, "extensionPath");
+        const extensionPath = configuredExtensionPath === undefined
+          ? undefined
+          : resolve(configuredExtensionPath);
         const url = requiredString(args, "url");
         const viewport = parseViewport(args.viewport);
-        const manifest = await loadExtensionManifest(extensionPath);
+        const manifest = extensionPath === undefined
+          ? undefined
+          : await loadExtensionManifest(extensionPath);
         const profileDir = await mkdtemp(join(tmpdir(), "diorama-mcp-profile-"));
         let engine: Engine | undefined;
         try {
-          engine = await Engine.launch({ extensionDir: extensionPath, userDataDir: profileDir });
-          const extension = await engine.findExtension(
-            new RegExp(escapeRegExp(manifest.name), "i"),
-          );
+          engine = await Engine.launch({
+            userDataDir: profileDir,
+            ...(extensionPath === undefined ? {} : { extensionDir: extensionPath }),
+          });
+          const extension = manifest === undefined
+            ? undefined
+            : await engine.findExtension(
+              new RegExp(escapeRegExp(manifest.name), "i"),
+            );
           const stage = await engine.createStage(url, viewport);
-          const stageTabId = await engine.resolveStageTabId(extension.swSession, url);
+          const stageTabId = extension === undefined
+            ? undefined
+            : await engine.resolveStageTabId(extension.swSession, url);
           const sessionId = randomUUID();
           sessions.set(sessionId, {
             engine,
-            extensionId: extension.extensionId,
-            swSession: extension.swSession,
+            ...(extension === undefined ? {} : {
+              extensionId: extension.extensionId,
+              swSession: extension.swSession,
+            }),
             stage,
-            stageTabId,
-            ...(manifest.popupPath ? { popupPath: manifest.popupPath } : {}),
+            ...(stageTabId === undefined ? {} : { stageTabId }),
+            ...(manifest?.popupPath ? { popupPath: manifest.popupPath } : {}),
             viewport,
             profileDir,
           });
           return {
             sessionId,
-            extensionId: extension.extensionId,
-            stageTabId,
+            ...(extension === undefined ? {} : { extensionId: extension.extensionId }),
+            ...(stageTabId === undefined ? {} : { stageTabId }),
           };
         } catch (error) {
           try {
@@ -294,6 +308,9 @@ export function createToolRegistry(): ToolRegistry {
       async (args) => {
         const session = requireSession(requiredString(args, "sessionId"));
         if (session.popup) throw new Error("A popup is already open");
+        if (session.extensionId === undefined || session.stageTabId === undefined) {
+          throw new Error("open_popup requires a session launched with extensionPath");
+        }
         if (!session.popupPath) throw new Error("The extension manifest has no default popup");
         session.popup = await session.engine.openExtensionPage(
           session.extensionId,

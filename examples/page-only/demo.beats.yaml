@@ -1,0 +1,37 @@
+# A plain web-page recording: no extension involved. This is the general
+# "agent records a web flow" case.
+version: 1
+title: Example Domain tour
+viewport:
+  width: 1280
+  height: 860
+  scale: 2
+steps:
+  - verb: goto
+    url: https://example.com/
+  - verb: wait
+    selector: h1
+  - verb: hold
+    ms: 900
+  - verb: camera
+    zoom: 1.5
+    focus: page
+    ms: 700
+  - verb: hover
+    selector: a
+  - verb: hold
+    ms: 800
+  - verb: click
+    selector: a
+  - verb: wait
+    expression: document.readyState === "complete"
+  - verb: hold
+    ms: 1000
+  - verb: camera
+    zoom: 1.0
+    focus: page
+    ms: 700
+  - verb: hold
+    ms: 800
+  - verb: mark
+    name: end

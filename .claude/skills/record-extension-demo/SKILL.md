@@ -60,6 +60,13 @@ title), profile (dir, seedStorage), cursor (scale, ripple, shadow), output
    breathe, adjust camera timing to land after UI settles.
 6. Iterate by editing the sheet and re-running. Recordings are reproducible.
 
+## Page-only recordings (no extension)
+
+Omit the `extension:` block entirely to record any web flow: goto, click,
+type, scroll, hover, camera. openPopup and `target: popup` are invalid
+without an extension. This is the general "record this web app flow" case:
+onboarding walkthroughs, bug reproductions, feature demos.
+
 ## Gotchas
 
 - The stage URL must be a real http(s) page the extension has host

@@ -6,7 +6,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 export interface LaunchChromeOptions {
   binary?: string;
   userDataDir: string;
-  extensionDir: string;
+  extensionDir?: string;
   headless?: boolean;
   extraArgs?: string[];
 }
@@ -61,8 +61,10 @@ export function buildArgs({
 }: LaunchChromeOptions): string[] {
   const args = [
     `--user-data-dir=${userDataDir}`,
-    `--load-extension=${extensionDir}`,
-    `--disable-extensions-except=${extensionDir}`,
+    ...(extensionDir === undefined ? [] : [
+      `--load-extension=${extensionDir}`,
+      `--disable-extensions-except=${extensionDir}`,
+    ]),
     "--remote-debugging-port=0",
     "--no-first-run",
     "--no-default-browser-check",

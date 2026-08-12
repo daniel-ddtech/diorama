@@ -16,7 +16,7 @@ export interface RenderFrameChromeOptions {
   themePath?: string;
   title: string;
   url: string;
-  iconPath: string;
+  iconPath?: string;
   width: number;
   height: number;
   scale: number;
@@ -131,7 +131,10 @@ export async function renderFrameChrome(
   const replacements: Record<string, string> = {
     TITLE: escapeHtml(options.title),
     URL: escapeHtml(options.url),
-    ICON_SRC: escapeHtml(pathToFileURL(resolve(options.iconPath)).href),
+    ICON_SRC: options.iconPath === undefined
+      ? "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=="
+      : escapeHtml(pathToFileURL(resolve(options.iconPath)).href),
+    EXT_DISPLAY: options.iconPath === undefined ? "none" : "flex",
     WIDTH: String(options.width),
     HEIGHT: String(options.height),
     TOOLBAR_H: String(TOOLBAR_HEIGHT),
