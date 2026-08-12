@@ -144,7 +144,8 @@
     .segment button.active { position: relative; color: var(--accent); border-color: var(--accent); border-right-width: 1px; }
     .segment button.active + button { border-left-width: 0; }
     .stepper { display: grid; grid-template-columns: repeat(4, 1fr); margin: 0 0 28px; }
-    .step-badge { position: relative; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .step-badge { position: relative; display: flex; align-items: center; color: var(--muted); font-size: 12px; }
+    .step-label { position: relative; z-index: 1; padding: 0 10px 0 8px; background: var(--bg); }
     .step-badge:not(:last-child)::after {
       position: absolute;
       top: 14px;
@@ -584,7 +585,7 @@
       return `<div class="stepper">${labels.map((label, index) => {
         const number = index + 1;
         const status = number < state.step ? "done" : number === state.step ? "active" : "";
-        return `<div class="step-badge ${status}"><span class="step-circle">${number < state.step ? "✓" : number}</span><span>${label}</span></div>`;
+        return `<div class="step-badge ${status}"><span class="step-circle">${number < state.step ? "✓" : number}</span><span class="step-label">${label}</span></div>`;
       }).join("")}</div>`;
     }
 
