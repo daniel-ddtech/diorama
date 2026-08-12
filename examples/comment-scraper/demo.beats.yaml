@@ -1,0 +1,64 @@
+# Dogfood: Reddit Comment Scraper scraping the r/sleep magnesium thread.
+# The same dataset the hookcollective landing page's MCP mockup shows.
+version: 1
+title: Reddit Comment Scraper
+# 1280x860 stage + 100px drawn toolbar = 1280x960 output — exactly the 4:3
+# box the hookcollective ProductShowcase clips this video into.
+viewport:
+  width: 1280
+  height: 860
+  scale: 2
+extension:
+  path: /Users/daniel/Developer/Apps/Diorama/spike/tmp-ext
+  popup:
+    width: 600
+    height: 600
+stageUrlSubstring: /r/sleep/
+steps:
+  - verb: goto
+    url: https://www.reddit.com/r/sleep/comments/1p55102/has_anyone_found_a_magnesium_supplement_that/
+  - verb: wait
+    expression: document.querySelectorAll("shreddit-comment").length > 3
+    timeoutMs: 40000
+  - verb: hold
+    ms: 1200
+  - verb: scroll
+    deltaY: 500
+  - verb: hold
+    ms: 900
+  - verb: openPopup
+  - verb: wait
+    target: popup
+    selector: text=Scrape a post yourself
+  - verb: hold
+    ms: 900
+  - verb: click
+    target: popup
+    selector: text=Scrape a post yourself
+  - verb: wait
+    target: popup
+    selector: text=Scrape Comments
+  - verb: hold
+    ms: 700
+  - verb: click
+    target: popup
+    selector: text=Scrape Comments
+  - verb: wait
+    target: popup
+    expression: /scraping comments|pulling comments/i.test(document.body.innerText)
+    timeoutMs: 15000
+  - verb: wait
+    target: popup
+    expression: '!/scraping comments|pulling comments/i.test(document.body.innerText)'
+    timeoutMs: 120000
+  - verb: hold
+    ms: 1000
+  - verb: mark
+    name: scraped
+  - verb: scroll
+    target: popup
+    deltaY: 400
+  - verb: hold
+    ms: 1500
+  - verb: mark
+    name: end
