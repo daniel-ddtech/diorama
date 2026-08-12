@@ -77,7 +77,18 @@ steps:
   - { verb: mark, name: done }
 `);
 
-      const result = await runBeats(engine, extension, sheet, {});
+      const hookCalls: string[] = [];
+      const result = await runBeats(engine, extension, sheet, {
+        hooks: {
+          onStageReady: () => {
+            hookCalls.push("stage");
+          },
+          onPopupOpened: () => {
+            hookCalls.push("popup");
+          },
+        },
+      });
+      expect(hookCalls).toEqual(["stage", "popup"]);
       const counter = await engine.cdp.evaluate<string>(
         result.stage.session,
         "document.querySelector('#counter').textContent",

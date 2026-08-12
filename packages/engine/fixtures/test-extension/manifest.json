@@ -2,6 +2,9 @@
   "manifest_version": 3,
   "name": "Diorama Fixture",
   "version": "1.0.0",
+  "icons": {
+    "128": "icon128.png"
+  },
   "permissions": [
     "scripting"
   ],

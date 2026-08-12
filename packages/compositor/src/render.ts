@@ -172,12 +172,12 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const timing = parseTiming(JSON.parse(await readFile(join(runDir, "timing.json"), "utf8")));
   const eventFile = parseEvents(JSON.parse(await readFile(join(runDir, "events.json"), "utf8")));
   const stage = streamNamed(timing, "stage");
-  const popup = streamNamed(timing, "popup");
+  const popupStream = timing.frames.find((stream) => stream.name === "popup");
+  const popup = popupStream && popupStream.times.length > 0 ? popupStream : undefined;
   const t0 = eventFile.startedAt ?? stage.times[0]!;
   const stageTailMs = frameTailMs(stage.times, fps);
   const durationMs = Math.max(0, stage.times[stage.times.length - 1]! - t0)
     + stageTailMs;
-  const popupLifetime = popupWindow(eventFile.events);
 
   const popupOrigin = {
     x: viewport.width - options.sheet.extension.popup.width - 24,
@@ -223,7 +223,7 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
       concatFileFor(stage.times, join(runDir, "stage"), t0, stageTailMs),
       "utf8",
     ),
-    writeFile(
+    ...(popup ? [writeFile(
       popupConcatPath,
       concatFileFor(
         popup.times,
@@ -232,20 +232,22 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
         frameTailMs(popup.times, fps),
       ),
       "utf8",
-    ),
+    )] : []),
   ]);
 
   const ffmpeg = process.env.DIORAMA_FFMPEG ?? "ffmpeg";
   await runBinary(ffmpeg, ffmpegArgs({
     frameChromePath: chromePath,
     stageConcatPath,
-    popupConcatPath,
     cursorPath: cursorPngPath,
-    popup: {
-      x: popupOrigin.x * viewport.scale,
-      y: popupOrigin.y * viewport.scale,
-      ...popupLifetime,
-    },
+    ...(popup ? {
+      popupConcatPath,
+      popup: {
+        x: popupOrigin.x * viewport.scale,
+        y: popupOrigin.y * viewport.scale,
+        ...popupWindow(eventFile.events),
+      },
+    } : {}),
     cursorSegments: scaledSegments(cursorSegments, viewport.scale),
     width: outputWidth,
     height: outputHeight,

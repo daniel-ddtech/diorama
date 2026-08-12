@@ -92,4 +92,22 @@ describe("ffmpegArgs", () => {
     expect(tIndex).toBeGreaterThan(args.indexOf("-map"));
     expect(tIndex).toBeLessThan(args.indexOf("/tmp/demo.mp4"));
   });
+
+  it("omits the popup input and overlay when there is no popup stream", () => {
+    const args = ffmpegArgs({
+      frameChromePath: "/tmp/chrome.png",
+      stageConcatPath: "/tmp/stage.ffconcat",
+      cursorPath: "/tmp/cursor.png",
+      cursorSegments: [],
+      width: 1280,
+      height: 900,
+      fps: 30,
+      durationMs: 1500,
+      mp4Path: "/tmp/demo.mp4",
+    });
+    const graph = args[args.indexOf("-filter_complex") + 1]!;
+    expect(args).not.toContain("/tmp/popup.ffconcat");
+    expect(graph).not.toContain("[popup]");
+    expect(graph).toContain("[framed][cursor]overlay");
+  });
 });

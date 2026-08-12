@@ -69,9 +69,12 @@ export interface CaptureFrameTimes {
 
 export interface CaptureLoopResult {
   frames: CaptureFrameTimes[];
+  /** Per-target count of ticks whose screenshot failed (e.g. mid-navigation). */
+  skipped?: Record<string, number>;
 }
 
 export interface CaptureLoop {
+  add(name: string, session: string): void;
   stop(): Promise<CaptureLoopResult>;
 }
 
@@ -247,42 +250,53 @@ export class Engine {
     }
 
     let running = true;
-    let captureError: Error | undefined;
+    const skipped = new Map<string, number>();
     const loop = (async (): Promise<void> => {
-      try {
-        while (running) {
-          const timestamp = Date.now();
-          await Promise.all(states.map(async (state) => {
-            const index = state.times.length;
+      while (running) {
+        const timestamp = Date.now();
+        // A failed screenshot must skip the tick, not kill the recording:
+        // captures land inside cross-process navigation windows ("Not attached
+        // to an active page") and just after a popup target closes.
+        await Promise.all(states.map(async (state) => {
+          const index = state.times.length;
+          try {
             const image = await this.screenshot(state.session, { format: "jpeg", quality: 85 });
             writeFileSync(
               join(options.outDir, state.name, `${String(index).padStart(5, "0")}.jpg`),
               image,
             );
             state.times.push(timestamp);
-          }));
-          if (running) await delay(options.intervalMs);
-        }
-      } catch (error) {
-        captureError = toError(error);
-        running = false;
+          } catch {
+            skipped.set(state.name, (skipped.get(state.name) ?? 0) + 1);
+          }
+        }));
+        if (running) await delay(options.intervalMs);
       }
     })();
 
     let stopPromise: Promise<CaptureLoopResult> | undefined;
     return {
+      add: (name, session) => {
+        mkdirSync(join(options.outDir, name), { recursive: true });
+        states.push({ name, session, times: [] });
+      },
       stop: () => {
         stopPromise ??= (async () => {
           running = false;
           await loop;
           const result: CaptureLoopResult = {
             frames: states.map(({ name, times }) => ({ name, times })),
+            skipped: Object.fromEntries(skipped),
           };
           writeFileSync(
             join(options.outDir, "timing.json"),
             `${JSON.stringify(result, null, 2)}\n`,
           );
-          if (captureError) throw captureError;
+          for (const state of states) {
+            if (state.times.length === 0) {
+              throw new Error(`Capture produced zero frames for "${state.name}" (${skipped.get(state.name) ?? 0} attempts failed)`);
+            }
+          }
           return result;
         })();
         return stopPromise;

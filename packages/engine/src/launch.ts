@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { spawn, type ChildProcess } from "node:child_process";
 
-const DEFAULT_CHROME_BINARY = "/Users/daniel/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+export const DEFAULT_CHROME_BINARY = "/Users/daniel/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
 
 export interface LaunchChromeOptions {
   binary?: string;
@@ -15,6 +15,10 @@ export interface LaunchedChrome {
   proc: ChildProcess;
   wsUrl: string;
   kill(): void;
+}
+
+export function resolveChromeBinary(binary?: string): string {
+  return binary ?? process.env.DIORAMA_CHROME ?? DEFAULT_CHROME_BINARY;
 }
 
 export function buildArgs({
@@ -39,7 +43,7 @@ export function buildArgs({
 }
 
 export async function launchChrome(options: LaunchChromeOptions): Promise<LaunchedChrome> {
-  const binary = options.binary ?? process.env.DIORAMA_CHROME ?? DEFAULT_CHROME_BINARY;
+  const binary = resolveChromeBinary(options.binary);
   if (!existsSync(binary)) {
     throw new Error(
       `Chrome binary not found at ${JSON.stringify(binary)}. Pass opts.binary or set DIORAMA_CHROME.`,

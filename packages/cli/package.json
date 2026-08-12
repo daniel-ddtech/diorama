@@ -1,0 +1,25 @@
+{
+  "name": "diorama",
+  "version": "0.0.0",
+  "type": "module",
+  "bin": {
+    "diorama": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@diorama/beats": "file:../beats",
+    "@diorama/compositor": "file:../compositor",
+    "@diorama/engine": "file:../engine"
+  }
+}

@@ -34,6 +34,10 @@ export interface BeatRunResult {
 
 export interface RunBeatsOptions {
   log?: (message: string) => void;
+  hooks?: {
+    onStageReady?(stage: StageTarget): void | Promise<void>;
+    onPopupOpened?(popup: StageTarget): void | Promise<void>;
+  };
 }
 
 function delay(ms: number): Promise<void> {
@@ -172,6 +176,7 @@ export async function runBeats(
             height: sheet.viewport.height,
             deviceScaleFactor: sheet.viewport.scale,
           });
+          await opts.hooks?.onStageReady?.(stage);
         } else {
           await engine.cdp.send("Page.navigate", { url: step.url }, stage.session);
         }
@@ -286,6 +291,7 @@ export async function runBeats(
             deviceScaleFactor: sheet.viewport.scale,
           },
         );
+        await opts.hooks?.onPopupOpened?.(popup);
         break;
       }
 

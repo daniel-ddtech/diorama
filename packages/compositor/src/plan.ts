@@ -44,9 +44,9 @@ export interface PopupOverlay extends PopupWindow {
 export interface FfmpegPlan {
   frameChromePath: string;
   stageConcatPath: string;
-  popupConcatPath: string;
+  popupConcatPath?: string;
   cursorPath: string;
-  popup: PopupOverlay;
+  popup?: PopupOverlay;
   cursorSegments: CursorSegment[];
   width: number;
   height: number;
@@ -253,31 +253,45 @@ export function ffmpegArgs(plan: FfmpegPlan): string[] {
   const stageY = plan.stageY ?? 0;
   const contentHeight = plan.height - stageY;
   if (contentHeight <= 0) throw new Error("The toolbar must be shorter than the output");
-  const enter = decimal(plan.popup.enterMs / 1_000);
-  const exit = plan.popup.exitMs === null
-    ? "1e9"
-    : decimal(plan.popup.exitMs / 1_000);
-  const popupEnable = `between(t,${enter},${exit})`;
+  if ((plan.popupConcatPath === undefined) !== (plan.popup === undefined)) {
+    throw new Error("popupConcatPath and popup must be provided together");
+  }
   const cursorX = cursorExpression(plan.cursorSegments, "x0", "x1");
   const cursorY = cursorExpression(plan.cursorSegments, "y0", "y1");
   const filter = [
     `[1:v]fps=${decimal(plan.fps)},scale=${plan.width}:${contentHeight}:flags=lanczos,pad=${plan.width}:${plan.height}:0:${stageY}:color=0x0c0c0f[base]`,
     "[0:v]format=rgba[chrome]",
     "[base][chrome]overlay=0:0:eof_action=repeat:shortest=0[framed]",
-    `[2:v]format=yuva420p,fade=in:alpha=1:st=0:d=0.2,setpts=PTS+${enter}/TB[popup]`,
-    `[framed][popup]overlay=${decimal(plan.popup.x)}:${decimal(plan.popup.y)}:enable='${popupEnable}':eof_action=repeat:shortest=0[withpopup]`,
-    "[3:v]format=rgba[cursor]",
-    `[withpopup][cursor]overlay=x='${cursorX}':y='${cursorY}':eval=frame:eof_action=repeat:shortest=0[out]`,
-  ].join(";");
+  ];
+  let cursorInput = 2;
+  let cursorBase = "framed";
+  if (plan.popup && plan.popupConcatPath) {
+    const enter = decimal(plan.popup.enterMs / 1_000);
+    const exit = plan.popup.exitMs === null
+      ? "1e9"
+      : decimal(plan.popup.exitMs / 1_000);
+    filter.push(
+      `[2:v]format=yuva420p,fade=in:alpha=1:st=0:d=0.2,setpts=PTS+${enter}/TB[popup]`,
+      `[framed][popup]overlay=${decimal(plan.popup.x)}:${decimal(plan.popup.y)}:enable='between(t,${enter},${exit})':eof_action=repeat:shortest=0[withpopup]`,
+    );
+    cursorInput = 3;
+    cursorBase = "withpopup";
+  }
+  filter.push(
+    `[${cursorInput}:v]format=rgba[cursor]`,
+    `[${cursorBase}][cursor]overlay=x='${cursorX}':y='${cursorY}':eval=frame:eof_action=repeat:shortest=0[out]`,
+  );
 
   if (!(plan.durationMs > 0)) throw new Error("FfmpegPlan.durationMs must be positive");
   return [
     "-y",
     "-loop", "1", "-i", plan.frameChromePath,
     "-f", "concat", "-safe", "0", "-i", plan.stageConcatPath,
-    "-f", "concat", "-safe", "0", "-i", plan.popupConcatPath,
+    ...(plan.popupConcatPath === undefined
+      ? []
+      : ["-f", "concat", "-safe", "0", "-i", plan.popupConcatPath]),
     "-loop", "1", "-i", plan.cursorPath,
-    "-filter_complex", filter,
+    "-filter_complex", filter.join(";"),
     "-map", "[out]",
     "-an",
     "-r", decimal(plan.fps),
