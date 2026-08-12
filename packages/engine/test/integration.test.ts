@@ -14,7 +14,7 @@ const fixtureDir = join(
 );
 
 // Extensions cannot inject into data: URLs, so the executeScript tabId probe
-// needs a real http origin — serve the stage page locally.
+// needs a real http origin, serve the stage page locally.
 function serveStage(): Promise<{ server: Server; url: string }> {
   return new Promise((resolve) => {
     const server = createServer((_req, res) => {

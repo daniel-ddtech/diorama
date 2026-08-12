@@ -22,7 +22,7 @@ if (!integrationEnabled) {
 }
 
 // One-shot --screenshot hangs with --user-data-dir and produces nothing for
-// data: URLs on CfT 148 (see assets.ts) — write the HTML to a file, no profile.
+// data: URLs on CfT 148 (see assets.ts), write the HTML to a file, no profile.
 function captureSolidImage(
   outputPath: string,
   scratchDir: string,

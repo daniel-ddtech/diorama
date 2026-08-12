@@ -11,7 +11,7 @@ import { launchChrome, CDP } from "./cdp.mjs";
 
 const ROOT = new URL(".", import.meta.url).pathname;
 const OUT = ROOT + "out";
-const BINARY = "/Users/daniel/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing";
+const BINARY = process.env.DIORAMA_CHROME; // historical spike; the real resolver lives in packages/engine
 const EXT = ROOT + "tmp-ext";
 const PROFILE = ROOT + "profile-spike";
 const THREAD = "https://www.reddit.com/r/sleep/comments/1p55102/has_anyone_found_a_magnesium_supplement_that/";
@@ -28,7 +28,7 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 23), ...a);
 try {
   // ---- GATE A: find OUR extension's service worker ----
   // Chrome ships component extensions with their own SWs (e.g. thunk.js), so
-  // never take the first chrome-extension:// worker — verify by manifest name.
+  // never take the first chrome-extension:// worker, verify by manifest name.
   await cdp.send("Target.setDiscoverTargets", { discover: true });
   let EXT_ID = null, swSession = null;
   for (let i = 0; i < 40 && !swSession; i++) {
@@ -57,7 +57,7 @@ try {
   log(`GATE B PASS: reddit thread loaded, ${commentCount} comments in DOM`);
 
   // stage tab id (for the shim) via the SW. Without the "tabs" permission
-  // tab.url is hidden from tabs.query, so probe each tab with executeScript —
+  // tab.url is hidden from tabs.query, so probe each tab with executeScript -
   // it only succeeds where host permissions exist, which is the reddit tab.
   const stageTabId = await cdp.eval(swSession, `(async () => {
     const tabs = await chrome.tabs.query({});
@@ -110,7 +110,7 @@ try {
   })()`);
   log("scrape button state:", JSON.stringify(btnState));
   if (!btnState.found || btnState.disabled) throw new Error("GATE C FAILED: " + JSON.stringify(btnState));
-  log("GATE C PASS: shim works — popup sees the reddit tab, button enabled");
+  log("GATE C PASS: shim works, popup sees the reddit tab, button enabled");
 
   // ---- capture loop (GATE E collection) starts before the click ----
   const frames = { stage: [], popup: [] };

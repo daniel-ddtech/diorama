@@ -65,7 +65,7 @@ export class CDP {
   }
 
   // Convenience wrapper for CDP Runtime.evaluate (not JS eval()): runs our own
-  // automation expressions inside the browser instance we launched — that is
+  // automation expressions inside the browser instance we launched, that is
   // the purpose of a CDP client. No untrusted input reaches this path.
   async eval(sessionId, expression, { awaitPromise = true } = {}) {
     const r = await this.send("Runtime.evaluate",
