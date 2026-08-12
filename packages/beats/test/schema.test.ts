@@ -29,9 +29,22 @@ describe("parseBeatSheet", () => {
     const sheet = parseBeatSheet(baseSheet);
 
     expect(sheet.viewport.scale).toBe(2);
+    expect(sheet.frame).toEqual({ theme: "dark" });
+    expect(sheet.profile).toEqual({});
     expect(sheet.extension.popupPath).toBe("popup.html");
-    expect(sheet.extension.popup).toEqual({ width: 600, height: 600 });
-    expect(sheet.output).toEqual({ fps: 30, holdTailMs: 2_000, endCard: true });
+    expect(sheet.extension.popup).toEqual({
+      width: 600,
+      height: 600,
+      autoSize: false,
+      position: "right",
+    });
+    expect(sheet.cursor).toEqual({ scale: 1, ripple: true, shadow: true });
+    expect(sheet.output).toEqual({
+      fps: 30,
+      holdTailMs: 2_000,
+      endCard: true,
+      formats: [],
+    });
     expect(sheet.steps[0]).toMatchObject({
       verb: "wait",
       target: "page",
@@ -73,5 +86,76 @@ describe("parseBeatSheet", () => {
       "selector: \"#ready\"",
       "selector: \"#ready\"\n    ms: 100",
     ))).toThrow(/wait requires exactly one of selector, ms, or expression/);
+  });
+
+  it("enforces camera zoom bounds", () => {
+    expect(() => parseBeatSheet(baseSheet.replace("zoom: 1.25", "zoom: 0.99")))
+      .toThrow(/steps\.4\.zoom/);
+    expect(() => parseBeatSheet(baseSheet.replace("zoom: 1.25", "zoom: 2.51")))
+      .toThrow(/steps\.4\.zoom/);
+
+    expect(parseBeatSheet(baseSheet.replace("zoom: 1.25", "zoom: 1")))
+      .toBeDefined();
+    expect(parseBeatSheet(baseSheet.replace("zoom: 1.25", "zoom: 2.5")))
+      .toBeDefined();
+  });
+
+  it("validates output formats and applies entry defaults", () => {
+    const withFormat = baseSheet.replace("steps:", `output:
+  posterAt: intro
+  formats:
+    - name: square
+      width: 1080
+      height: 1080
+    - name: portrait
+      width: 1080
+      height: 1920
+      crf: 18
+      fit: contain
+steps:`);
+    const sheet = parseBeatSheet(withFormat);
+    expect(sheet.output.posterAt).toBe("intro");
+    expect(sheet.output.formats).toEqual([{
+      name: "square",
+      width: 1080,
+      height: 1080,
+      crf: 28,
+      fit: "cover",
+    }, {
+      name: "portrait",
+      width: 1080,
+      height: 1920,
+      crf: 18,
+      fit: "contain",
+    }]);
+    expect(parseBeatSheet(withFormat.replace("posterAt: intro", "posterAt: 1200"))
+      .output.posterAt).toBe(1_200);
+    expect(() => parseBeatSheet(withFormat.replace("posterAt: intro", "posterAt: -1")))
+      .toThrow(/output\.posterAt/);
+
+    for (const invalidEntry of [
+      "width: 0\n      height: 1080",
+      "width: 1080\n      height: 0",
+      "width: 1080\n      height: 1080\n      crf: 0",
+      "width: 1080\n      height: 1080\n      crf: 52",
+      "width: 1080\n      height: 1080\n      fit: stretch",
+    ]) {
+      expect(() => parseBeatSheet(baseSheet.replace("steps:", `output:
+  formats:
+    - name: invalid
+      ${invalidEntry}
+steps:`))).toThrow(/output\.formats\.0/);
+    }
+  });
+
+  it.each([
+    ["true", true],
+    ["false", false],
+    ["{ title: Done, subtitle: Thanks }", { title: "Done", subtitle: "Thanks" }],
+  ])("accepts output.endCard %s", (yamlValue, expected) => {
+    const sheet = parseBeatSheet(baseSheet.replace("steps:", `output:
+  endCard: ${yamlValue}
+steps:`));
+    expect(sheet.output.endCard).toEqual(expected);
   });
 });

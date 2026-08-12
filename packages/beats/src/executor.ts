@@ -22,7 +22,11 @@ export interface BeatEvent {
   name?: string;
   zoom?: number;
   focus?: CameraFocus;
+  ms?: number;
   url?: string;
+  width?: number;
+  height?: number;
+  position?: "right" | "left";
 }
 
 export interface BeatRunResult {
@@ -290,16 +294,43 @@ export async function runBeats(
           ext.swSession,
           stageProbeSubstring(sheet, lastGotoUrl),
         );
+        const configuredPopup = sheet.extension.popup;
+        const initialWidth = configuredPopup.autoSize ? 25 : configuredPopup.width;
+        const initialHeight = configuredPopup.autoSize ? 25 : configuredPopup.height;
         popup = await engine.openExtensionPage(
           ext.extensionId,
           sheet.extension.popupPath,
           {
             shimTabId,
-            width: sheet.extension.popup.width,
-            height: sheet.extension.popup.height,
+            width: initialWidth,
+            height: initialHeight,
             deviceScaleFactor: sheet.viewport.scale,
           },
         );
+        let finalWidth = configuredPopup.width;
+        let finalHeight = configuredPopup.height;
+        if (configuredPopup.autoSize) {
+          try {
+            await engine.cdp.waitForExpression(
+              popup.session,
+              "document.body?.innerText.length > 0",
+              { timeoutMs: 300, pollMs: 25, label: "popup body content" },
+            );
+          } catch {
+            // A popup with no body text still gets measured after the settle window.
+          }
+          const measured = await engine.measureContentSize(popup.session);
+          finalWidth = Math.min(800, Math.max(25, measured.width));
+          finalHeight = Math.min(600, Math.max(25, measured.height));
+          await engine.applyViewport(popup.session, {
+            width: finalWidth,
+            height: finalHeight,
+            deviceScaleFactor: sheet.viewport.scale,
+          });
+        }
+        details.width = finalWidth;
+        details.height = finalHeight;
+        details.position = configuredPopup.position;
         await opts.hooks?.onPopupOpened?.(popup);
         break;
       }
@@ -314,6 +345,7 @@ export async function runBeats(
       case "camera":
         details.zoom = step.zoom;
         details.focus = step.focus;
+        details.ms = step.ms;
         await delay(step.ms);
         break;
 

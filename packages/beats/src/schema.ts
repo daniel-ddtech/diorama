@@ -64,7 +64,7 @@ export type CameraFocus = z.infer<typeof cameraFocusSchema>;
 
 const cameraStepSchema = z.object({
   verb: z.literal("camera"),
-  zoom: z.number(),
+  zoom: z.number().min(1).max(2.5),
   focus: cameraFocusSchema.default("none"),
   ms: duration.default(600),
 });
@@ -108,6 +108,15 @@ export const beatStepSchema = z.discriminatedUnion("verb", [
 export const beatSheetSchema = z.object({
   version: z.literal(1),
   title: z.string(),
+  frame: z.object({
+    theme: z.string().default("dark"),
+    url: z.string().optional(),
+    title: z.string().optional(),
+  }).default({}),
+  profile: z.object({
+    dir: z.string().optional(),
+    seedStorage: z.string().optional(),
+  }).default({}),
   viewport: z.object({
     width: positiveInteger,
     height: positiveInteger,
@@ -119,13 +128,37 @@ export const beatSheetSchema = z.object({
     popup: z.object({
       width: positiveInteger.default(600),
       height: positiveInteger.default(600),
+      autoSize: z.boolean().default(false),
+      position: z.enum(["right", "left"]).default("right"),
     }).default({}),
   }),
+  cursor: z.object({
+    scale: z.number().positive().max(3).default(1),
+    ripple: z.boolean().default(true),
+    shadow: z.boolean().default(true),
+  }).default({}),
   stageUrlSubstring: z.string().optional(),
   output: z.object({
     fps: positiveInteger.default(30),
     holdTailMs: duration.default(2_000),
-    endCard: z.boolean().default(true),
+    endCard: z.union([
+      z.boolean(),
+      z.object({
+        title: z.string(),
+        subtitle: z.string().optional(),
+      }),
+    ]).default(true),
+    posterAt: z.union([
+      z.string(),
+      z.number().int().nonnegative(),
+    ]).optional(),
+    formats: z.array(z.object({
+      name: z.string(),
+      width: positiveInteger,
+      height: positiveInteger,
+      crf: z.number().int().min(1).max(51).default(28),
+      fit: z.enum(["cover", "contain"]).default("cover"),
+    })).default([]),
   }).default({}),
   steps: z.array(beatStepSchema),
 });

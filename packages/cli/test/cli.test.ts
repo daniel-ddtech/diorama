@@ -1,16 +1,22 @@
-import { readFile } from "node:fs/promises";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 import {
   initCommand,
   main,
+  parseRecordCommandArgs,
   recordCommand,
   runDoctorChecks,
 } from "../src/index.js";
+
+const fixtureDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../engine/fixtures/test-extension",
+);
 
 describe("initCommand", () => {
   it("writes the starter sheet and refuses to overwrite it without --force", async () => {
@@ -47,10 +53,59 @@ describe("runDoctorChecks", () => {
 });
 
 describe("recordCommand", () => {
+  it("parses profile and seed storage overrides", () => {
+    expect(parseRecordCommandArgs([
+      "demo.beats.yaml",
+      "--profile-dir",
+      "./chrome-profile",
+      "--seed-storage",
+      "./storage.json",
+    ])).toMatchObject({
+      sheetPath: "demo.beats.yaml",
+      profileDir: "./chrome-profile",
+      seedStorage: "./storage.json",
+    });
+  });
+
   it("rejects a nonexistent beat sheet with a readable error", async () => {
     await expect(recordCommand([
       join(tmpdir(), "definitely-missing-diorama-sheet.yaml"),
     ], { log: () => {} })).rejects.toThrow(/Beat sheet not found:/);
+  });
+
+  it("reports missing and invalid seed storage files with their resolved paths", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "diorama-cli-seed-test-"));
+    const sheetPath = join(tempDir, "demo.beats.yaml");
+    const invalidSeedPath = join(tempDir, "invalid-storage.json");
+    try {
+      await writeFile(sheetPath, `
+version: 1
+title: seed path error
+viewport: { width: 800, height: 600 }
+extension:
+  path: ${JSON.stringify(fixtureDir)}
+steps: []
+`, "utf8");
+
+      await expect(recordCommand([
+        sheetPath,
+        "--seed-storage",
+        "missing-storage.json",
+      ], { log: () => {} })).rejects.toThrow(
+        `Could not read seed storage file at ${join(tempDir, "missing-storage.json")}`,
+      );
+
+      await writeFile(invalidSeedPath, "{not valid JSON", "utf8");
+      await expect(recordCommand([
+        sheetPath,
+        "--seed-storage",
+        "invalid-storage.json",
+      ], { log: () => {} })).rejects.toThrow(
+        `Invalid seed storage JSON at ${invalidSeedPath}`,
+      );
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });
 

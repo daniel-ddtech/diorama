@@ -19,6 +19,8 @@ Record options:
   --out <dir>                        Output directory (default: ./diorama-out)
   --fps <n>                          Output frame rate (default: 30)
   --keep-run                         Keep captured frames and event files
+  --profile-dir <path>               Use a persistent Chrome profile directory
+  --seed-storage <path>              Seed extension storage from a JSON file
 `;
 
 export interface MainIo {

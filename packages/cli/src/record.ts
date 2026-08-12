@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
@@ -22,6 +22,10 @@ export interface RecordDemoOptions {
   keepRun?: boolean;
   /** Override the sheet's output.endCard (e.g. --no-end-card). */
   endCard?: boolean;
+  /** Override the sheet's persistent Chrome profile directory. */
+  profileDir?: string;
+  /** Override the sheet's extension storage seed JSON file. */
+  seedStorage?: string;
 }
 
 export interface RecordDemoResult extends RenderDemoResult {
@@ -46,6 +50,36 @@ function titleSlug(title: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "") || "demo";
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+async function loadSeedStorage(filePath: string): Promise<object> {
+  let contents: string;
+  try {
+    contents = await readFile(filePath, "utf8");
+  } catch (error) {
+    throw new Error(
+      `Could not read seed storage file at ${filePath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(contents);
+  } catch (error) {
+    throw new Error(
+      `Invalid seed storage JSON at ${filePath}: ${errorMessage(error)}`,
+      { cause: error },
+    );
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`Seed storage JSON at ${filePath} must be a JSON object`);
+  }
+  return parsed;
 }
 
 async function loadExtensionManifest(
@@ -104,18 +138,28 @@ export async function recordDemo(
   }
 
   const sheet = loadBeatSheet(sheetPath);
-  const extensionDir = resolve(dirname(sheetPath), sheet.extension.path);
+  const sheetDir = dirname(sheetPath);
+  const extensionDir = resolve(sheetDir, sheet.extension.path);
   const { manifest, iconPath } = await loadExtensionManifest(extensionDir);
+  const configuredSeedStorage = options.seedStorage ?? sheet.profile.seedStorage;
+  const seedStorage = configuredSeedStorage === undefined
+    ? undefined
+    : await loadSeedStorage(resolve(sheetDir, configuredSeedStorage));
   const outputDir = resolve(options.outDir ?? "diorama-out");
   const slug = titleSlug(sheet.title);
   const outPath = join(outputDir, `${slug}.mp4`);
   const posterPath = join(outputDir, `${slug}-poster.jpg`);
-  const profileDir = await mkdtemp(join(tmpdir(), "diorama-profile-"));
+  const configuredProfileDir = options.profileDir ?? sheet.profile.dir;
+  const temporaryProfile = configuredProfileDir === undefined;
+  const profileDir = temporaryProfile
+    ? await mkdtemp(join(tmpdir(), "diorama-profile-"))
+    : resolve(sheetDir, configuredProfileDir);
+  if (!temporaryProfile) await mkdir(profileDir, { recursive: true });
   let runDir: string;
   try {
     runDir = await mkdtemp(join(tmpdir(), "diorama-run-"));
   } catch (error) {
-    await rm(profileDir, { recursive: true, force: true });
+    if (temporaryProfile) await rm(profileDir, { recursive: true, force: true });
     throw error;
   }
   const keepRun = options.keepRun ?? false;
@@ -130,6 +174,9 @@ export async function recordDemo(
     const extension = await engine.findExtension(
       new RegExp(escapeRegExp(manifest.name), "i"),
     );
+    if (seedStorage !== undefined) {
+      await engine.seedStorage(extension.swSession, seedStorage);
+    }
     const result = await runBeats(engine, extension, sheet, {
       hooks: {
         onStageReady: (stage) => {
@@ -149,6 +196,7 @@ export async function recordDemo(
     loopStopped = true;
     skipped = capture.skipped ?? {};
     writeEventLog(result, join(runDir, "events.json"));
+    const configuredEndCard = options.endCard ?? sheet.output.endCard;
     rendered = await renderDemo({
       runDir,
       sheet: {
@@ -160,7 +208,7 @@ export async function recordDemo(
       outPath,
       posterPath,
       fps,
-      endCard: options.endCard ?? sheet.output.endCard,
+      endCard: typeof configuredEndCard === "boolean" ? configuredEndCard : true,
     });
   } finally {
     if (loop && !loopStopped) {
@@ -174,7 +222,9 @@ export async function recordDemo(
       if (engine) await engine.close();
     } finally {
       await Promise.all([
-        rm(profileDir, { recursive: true, force: true }),
+        ...(temporaryProfile
+          ? [rm(profileDir, { recursive: true, force: true })]
+          : []),
         ...(!keepRun ? [rm(runDir, { recursive: true, force: true })] : []),
       ]);
     }
@@ -188,10 +238,7 @@ export async function recordDemo(
   };
 }
 
-export async function recordCommand(
-  args: string[],
-  options: RecordCommandOptions = {},
-): Promise<RecordCommandResult> {
+export function parseRecordCommandArgs(args: string[]): RecordDemoOptions {
   const { values, positionals } = parseArgs({
     args,
     allowPositionals: true,
@@ -201,6 +248,8 @@ export async function recordCommand(
       fps: { type: "string" },
       "keep-run": { type: "boolean", default: false },
       "no-end-card": { type: "boolean", default: false },
+      "profile-dir": { type: "string" },
+      "seed-storage": { type: "string" },
     },
   });
   if (positionals.length !== 1) {
@@ -211,13 +260,26 @@ export async function recordCommand(
     throw new Error("--fps must be a positive integer");
   }
 
-  const rendered = await recordDemo({
+  return {
     sheetPath: positionals[0]!,
     ...(values.out === undefined ? {} : { outDir: values.out }),
     fps,
     keepRun: values["keep-run"],
     ...(values["no-end-card"] ? { endCard: false } : {}),
-  });
+    ...(values["profile-dir"] === undefined
+      ? {}
+      : { profileDir: values["profile-dir"] }),
+    ...(values["seed-storage"] === undefined
+      ? {}
+      : { seedStorage: values["seed-storage"] }),
+  };
+}
+
+export async function recordCommand(
+  args: string[],
+  options: RecordCommandOptions = {},
+): Promise<RecordCommandResult> {
+  const rendered = await recordDemo(parseRecordCommandArgs(args));
   const log = options.log ?? console.log;
   log(`mp4: ${rendered.mp4Path}`);
   log(`poster: ${rendered.posterPath}`);

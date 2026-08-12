@@ -38,6 +38,11 @@ export interface ViewportOptions {
   deviceScaleFactor: number;
 }
 
+export interface ContentSize {
+  width: number;
+  height: number;
+}
+
 export interface StageTarget {
   targetId: string;
   session: string;
@@ -164,13 +169,24 @@ export class Engine {
     );
     const session = await this.cdp.attach(targetId);
     await this.cdp.send("Page.enable", {}, session);
+    await this.applyViewport(session, viewport);
+    await this.cdp.send("Page.navigate", { url }, session);
+    return { targetId, session };
+  }
+
+  async applyViewport(session: string, viewport: ViewportOptions): Promise<void> {
     await this.cdp.send(
       "Emulation.setDeviceMetricsOverride",
       { ...viewport, mobile: false },
       session,
     );
-    await this.cdp.send("Page.navigate", { url }, session);
-    return { targetId, session };
+  }
+
+  async measureContentSize(session: string): Promise<ContentSize> {
+    return this.cdp.evaluate<ContentSize>(session, `({
+      width: document.documentElement.scrollWidth,
+      height: document.documentElement.scrollHeight,
+    })`);
   }
 
   async resolveStageTabId(swSession: string, urlSubstring: string): Promise<number> {
@@ -210,11 +226,7 @@ export class Engine {
         session,
       );
     }
-    await this.cdp.send(
-      "Emulation.setDeviceMetricsOverride",
-      { ...viewport, mobile: false },
-      session,
-    );
+    await this.applyViewport(session, viewport);
     const normalizedPath = pagePath.replace(/^\/+/, "");
     await this.cdp.send(
       "Page.navigate",

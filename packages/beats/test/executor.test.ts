@@ -65,7 +65,7 @@ title: executor integration
 viewport: { width: 800, height: 600, scale: 1 }
 extension:
   path: ${JSON.stringify(fixtureDir)}
-  popup: { width: 400, height: 240 }
+  popup: { width: 790, height: 590, autoSize: true, position: left }
 output: { holdTailMs: 0 }
 steps:
   - { verb: goto, url: ${JSON.stringify(stageUrl)} }
@@ -74,17 +74,20 @@ steps:
   - { verb: type, selector: "#field", text: "hi", perCharMs: 0 }
   - { verb: openPopup }
   - { verb: wait, target: popup, selector: "#active-tab" }
+  - { verb: camera, zoom: 1.25, focus: popup, ms: 0 }
   - { verb: mark, name: done }
 `);
 
       const hookCalls: string[] = [];
+      let popupSizeAtOpen: { width: number; height: number } | undefined;
       const result = await runBeats(engine, extension, sheet, {
         hooks: {
           onStageReady: () => {
             hookCalls.push("stage");
           },
-          onPopupOpened: () => {
+          onPopupOpened: async (openedPopup) => {
             hookCalls.push("popup");
+            popupSizeAtOpen = await engine!.measureContentSize(openedPopup.session);
           },
         },
       });
@@ -116,6 +119,19 @@ steps:
       );
       expect(activeTabText).toContain(String(stageTabId));
 
+      const popupEvent = result.events.find((event) => event.verb === "openPopup");
+      expect(popupEvent).toMatchObject({
+        width: popupSizeAtOpen!.width,
+        height: popupSizeAtOpen!.height,
+        position: "left",
+      });
+      expect(popupEvent!.width).toBeGreaterThan(0);
+      expect(popupEvent!.width).toBeLessThanOrEqual(800);
+      expect(popupEvent!.height).toBeGreaterThan(0);
+      expect(popupEvent!.height).toBeLessThanOrEqual(600);
+      expect({ width: popupEvent!.width, height: popupEvent!.height })
+        .not.toEqual({ width: 790, height: 590 });
+
       for (let index = 1; index < result.events.length; index += 1) {
         expect(result.events[index]!.tStartMs)
           .toBeGreaterThanOrEqual(result.events[index - 1]!.tStartMs);
@@ -123,6 +139,12 @@ steps:
       const clickEvent = result.events.find((event) => event.verb === "click");
       expect(clickEvent?.x).toEqual(expect.any(Number));
       expect(clickEvent?.y).toEqual(expect.any(Number));
+      expect(result.events).toContainEqual(expect.objectContaining({
+        verb: "camera",
+        zoom: 1.25,
+        focus: "popup",
+        ms: 0,
+      }));
       expect(result.events).toContainEqual(expect.objectContaining({
         verb: "mark",
         name: "done",
