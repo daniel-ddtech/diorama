@@ -129,6 +129,15 @@ in an editor with a live YAML preview, then record with streaming progress
 and watch the result inline. Past runs live in the Library. Everything the
 studio does round-trips through the same beat-sheet YAML the CLI and MCP use.
 
+## For AI agents
+
+Two ways in. The MCP server gives chat agents live tools; the bundled skill
+teaches shell-capable agents (Claude Code, Codex) the CLI workflow:
+`.claude/skills/record-extension-demo/` ships in this repo, so Claude Code
+picks it up automatically when working inside it, and you can copy it into
+your extension's repo or `~/.claude/skills/` to make "record a demo of this
+extension" a one-line request anywhere.
+
 ## MCP server (for agents)
 
 ```bash
