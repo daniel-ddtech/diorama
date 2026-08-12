@@ -2,8 +2,15 @@ import { spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { renderCursorPng, renderEndCard, renderFrameChrome } from "./assets.js";
 import {
+  cursorHotspotOffset,
+  renderCursorPng,
+  renderEndCard,
+  renderFrameChrome,
+  renderRippleFrames,
+} from "./assets.js";
+import {
+  cameraTrack,
   concatFileFor,
   cursorPath,
   ffmpegArgs,
@@ -29,6 +36,17 @@ interface EventFile {
 
 export interface RenderSheet {
   title: string;
+  frame?: {
+    theme: string;
+    themePath?: string;
+    url?: string;
+    title?: string;
+  };
+  cursor?: {
+    scale: number;
+    ripple: boolean;
+    shadow: boolean;
+  };
   viewport: {
     width: number;
     height: number;
@@ -38,8 +56,26 @@ export interface RenderSheet {
     popup: {
       width: number;
       height: number;
+      position?: "right" | "left";
     };
   };
+  output?: {
+    posterAt?: string | number;
+    formats?: OutputFormat[];
+  };
+}
+
+export interface EndCardOptions {
+  title: string;
+  subtitle?: string;
+}
+
+export interface OutputFormat {
+  name: string;
+  width: number;
+  height: number;
+  crf: number;
+  fit: "cover" | "contain";
 }
 
 export interface RenderDemoOptions {
@@ -51,13 +87,15 @@ export interface RenderDemoOptions {
   fps?: number;
   /** Append the "Recorded with diorama" card (1.6s). Callers decide; the CLI
    * defaults it on via the beat sheet's output.endCard. */
-  endCard?: boolean;
+  endCard?: boolean | EndCardOptions;
+  log?: (message: string) => void;
 }
 
 export interface RenderDemoResult {
   mp4Path: string;
   posterPath: string;
   durationMs: number;
+  formats: Array<{ name: string; path: string }>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -123,15 +161,54 @@ function frameTailMs(times: number[], fps: number): number {
   return 1_000 / fps;
 }
 
-function scaledSegments(segments: CursorSegment[], scale: number): CursorSegment[] {
+function scaledSegments(
+  segments: CursorSegment[],
+  scale: number,
+  hotspot: { x: number; y: number },
+): CursorSegment[] {
   return segments.map((segment) => ({
     t0: segment.t0,
     t1: segment.t1,
-    x0: segment.x0 * scale,
-    y0: segment.y0 * scale,
-    x1: segment.x1 * scale,
-    y1: segment.y1 * scale,
+    x0: (segment.x0 - hotspot.x) * scale,
+    y0: (segment.y0 - hotspot.y) * scale,
+    x1: (segment.x1 - hotspot.x) * scale,
+    y1: (segment.y1 - hotspot.y) * scale,
   }));
+}
+
+function titleSlug(title: string): string {
+  return title
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "demo";
+}
+
+function requestedPosterMs(
+  posterAt: string | number | undefined,
+  events: CompositorEvent[],
+  durationMs: number,
+): number {
+  if (typeof posterAt === "number") return posterAt;
+  const marks = events.filter((event) => event.verb === "mark" && event.name);
+  if (typeof posterAt === "string") {
+    const requested = marks.find((event) => event.name === posterAt);
+    if (!requested) {
+      const available = marks.map((event) => event.name).join(", ") || "(none)";
+      throw new Error(
+        `Poster mark ${JSON.stringify(posterAt)} not found. Available marks: ${available}`,
+      );
+    }
+    return requested.tStartMs;
+  }
+  return marks.at(-1)?.tStartMs ?? durationMs * 0.8;
+}
+
+function outputFormatFilter(format: OutputFormat): string {
+  if (format.fit === "contain") {
+    return `scale=${format.width}:${format.height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${format.width}:${format.height}:(ow-iw)/2:(oh-ih)/2:color=0x0c0c0f,setsar=1`;
+  }
+  return `scale=${format.width}:${format.height}:force_original_aspect_ratio=increase:flags=lanczos,crop=${format.width}:${format.height}:(iw-ow)/2:(ih-oh)/2,setsar=1`;
 }
 
 function lastLines(value: string, count: number): string {
@@ -182,9 +259,25 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const durationMs = Math.max(0, stage.times[stage.times.length - 1]! - t0)
     + stageTailMs;
 
+  const openPopupEvent = eventFile.events.find((event) => event.verb === "openPopup");
+  const configuredPopup = options.sheet.extension.popup;
+  const popupSize = {
+    width: Number.isFinite(openPopupEvent?.width) && openPopupEvent!.width! > 0
+      ? openPopupEvent!.width!
+      : configuredPopup.width,
+    height: Number.isFinite(openPopupEvent?.height) && openPopupEvent!.height! > 0
+      ? openPopupEvent!.height!
+      : configuredPopup.height,
+  };
+  const popupPosition = openPopupEvent?.position ?? configuredPopup.position ?? "right";
   const popupOrigin = {
-    x: viewport.width - options.sheet.extension.popup.width - 24,
+    x: popupPosition === "left" ? 24 : viewport.width - popupSize.width - 24,
     y: TOOLBAR_HEIGHT + 16,
+  };
+  const cursorOptions = options.sheet.cursor ?? {
+    scale: 1,
+    ripple: false,
+    shadow: false,
   };
   const cursorSegments = cursorPath(eventFile.events, {
     enterMs: 0,
@@ -194,25 +287,63 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   const outputCssHeight = viewport.height + TOOLBAR_HEIGHT;
   const outputWidth = Math.round(viewport.width * viewport.scale);
   const outputHeight = Math.round(outputCssHeight * viewport.scale);
+  const cameraSegments = cameraTrack(eventFile.events, {
+    width: viewport.width,
+    height: viewport.height,
+    toolbarH: TOOLBAR_HEIGHT,
+    popupOrigin,
+    popupSize,
+  });
+
+  const allRippleEvents = cursorOptions.ripple
+    ? eventFile.events.filter((event) => (
+      event.verb === "click"
+      && Number.isFinite(event.x)
+      && Number.isFinite(event.y)
+    ))
+    : [];
+  const rippleEvents = allRippleEvents.slice(0, 24);
+  if (allRippleEvents.length > rippleEvents.length) {
+    (options.log ?? console.info)(
+      `Click ripples are capped at 24; skipped ${allRippleEvents.length - rippleEvents.length} extra clicks`,
+    );
+  }
+  const rippleDir = join(runDir, "ripple");
+  const rippleFramesPath = join(rippleDir, "%02d.png");
+  const ripples = rippleEvents.map((event) => {
+    const origin = event.target === "popup"
+      ? popupOrigin
+      : { x: 0, y: TOOLBAR_HEIGHT };
+    return {
+      framesPath: rippleFramesPath,
+      tStartMs: event.tStartMs,
+      x: (event.x! + origin.x - 32) * viewport.scale,
+      y: (event.y! + origin.y - 32) * viewport.scale,
+    };
+  });
 
   const gotoUrl = [...eventFile.events].reverse()
     .find((event) => event.verb === "goto" && event.url)?.url ?? "";
-  const [chromePng, cursorPng] = await Promise.all([
+  const frame = options.sheet.frame ?? { theme: "dark" };
+  const [chromePng, cursorPng, rippleFrames] = await Promise.all([
     renderFrameChrome({
-      theme: "dark",
-      title: options.sheet.title,
-      url: gotoUrl,
+      theme: frame.theme,
+      ...(frame.themePath === undefined ? {} : { themePath: frame.themePath }),
+      title: frame.title ?? options.sheet.title,
+      url: frame.url ?? gotoUrl,
       iconPath: options.iconPath,
       width: viewport.width,
       height: outputCssHeight,
       scale: viewport.scale,
     }),
-    renderCursorPng(viewport.scale),
+    renderCursorPng(viewport.scale, cursorOptions),
+    rippleEvents.length > 0 ? renderRippleFrames(viewport.scale) : Promise.resolve([]),
   ]);
 
   await Promise.all([
     mkdir(dirname(mp4Path), { recursive: true }),
     mkdir(dirname(posterPath), { recursive: true }),
+    ...(rippleFrames.length > 0 ? [mkdir(rippleDir, { recursive: true })] : []),
   ]);
   const chromePath = join(runDir, "frame-chrome.png");
   const cursorPngPath = join(runDir, "cursor.png");
@@ -221,6 +352,10 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   await Promise.all([
     writeFile(chromePath, chromePng),
     writeFile(cursorPngPath, cursorPng),
+    ...rippleFrames.map((framePng, index) => writeFile(
+      join(rippleDir, `${String(index).padStart(2, "0")}.png`),
+      framePng,
+    )),
     writeFile(
       stageConcatPath,
       concatFileFor(stage.times, join(runDir, "stage"), t0, stageTailMs),
@@ -251,7 +386,13 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
         ...popupWindow(eventFile.events),
       },
     } : {}),
-    cursorSegments: scaledSegments(cursorSegments, viewport.scale),
+    cursorSegments: scaledSegments(
+      cursorSegments,
+      viewport.scale,
+      cursorHotspotOffset(cursorOptions),
+    ),
+    cameraSegments,
+    ripples,
     width: outputWidth,
     height: outputHeight,
     stageY: TOOLBAR_HEIGHT * viewport.scale,
@@ -260,11 +401,13 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     mp4Path,
   }), "ffmpeg encode");
 
-  const lastMark = [...eventFile.events].reverse()
-    .find((event) => event.verb === "mark");
-  const requestedPosterMs = lastMark?.tStartMs ?? durationMs * 0.8;
+  const posterRequestMs = requestedPosterMs(
+    options.sheet.output?.posterAt,
+    eventFile.events,
+    durationMs,
+  );
   const lastUsableMs = Math.max(0, durationMs - 1_000 / fps);
-  const posterMs = Math.min(Math.max(0, requestedPosterMs), lastUsableMs);
+  const posterMs = Math.min(Math.max(0, posterRequestMs), lastUsableMs);
   await runBinary(ffmpeg, [
     "-y",
     "-i", mp4Path,
@@ -277,7 +420,12 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
   let finalDurationMs = durationMs;
   if (options.endCard) {
     const cardMs = 1_600;
-    const cardPng = await renderEndCard(viewport.width, outputCssHeight, viewport.scale);
+    const cardPng = await renderEndCard(
+      viewport.width,
+      outputCssHeight,
+      viewport.scale,
+      typeof options.endCard === "object" ? options.endCard : undefined,
+    );
     const cardPath = join(runDir, "endcard.png");
     const withCardPath = join(runDir, "with-endcard.mp4");
     await writeFile(cardPath, cardPng);
@@ -298,5 +446,25 @@ export async function renderDemo(options: RenderDemoOptions): Promise<RenderDemo
     finalDurationMs += cardMs;
   }
 
-  return { mp4Path, posterPath, durationMs: finalDurationMs };
+  const formats: RenderDemoResult["formats"] = [];
+  for (const format of options.sheet.output?.formats ?? []) {
+    const formatPath = join(
+      dirname(mp4Path),
+      `${titleSlug(options.sheet.title)}-${format.name}.mp4`,
+    );
+    await runBinary(ffmpeg, [
+      "-y",
+      "-i", mp4Path,
+      "-vf", outputFormatFilter(format),
+      "-an",
+      "-c:v", "libx264",
+      "-crf", String(format.crf),
+      "-pix_fmt", "yuv420p",
+      "-movflags", "+faststart",
+      formatPath,
+    ], `ffmpeg format ${format.name}`);
+    formats.push({ name: format.name, path: formatPath });
+  }
+
+  return { mp4Path, posterPath, durationMs: finalDurationMs, formats };
 }

@@ -12,7 +12,8 @@ const FRAMES_DIR = resolve(
 );
 
 export interface RenderFrameChromeOptions {
-  theme: "dark";
+  theme: string;
+  themePath?: string;
   title: string;
   url: string;
   iconPath: string;
@@ -20,6 +21,20 @@ export interface RenderFrameChromeOptions {
   height: number;
   scale: number;
 }
+
+export interface RenderCursorOptions {
+  scale?: number;
+  shadow?: boolean;
+}
+
+export interface EndCardText {
+  title?: string;
+  subtitle?: string;
+}
+
+export const CURSOR_HOTSPOT_X = 1;
+export const CURSOR_HOTSPOT_Y = 1;
+export const CURSOR_SHADOW_PAD = 6;
 
 export { resolveChromeBinary } from "@adlicio/diorama-engine";
 import { resolveChromeBinary } from "@adlicio/diorama-engine";
@@ -109,7 +124,9 @@ async function renderHtmlScreenshot(
 export async function renderFrameChrome(
   options: RenderFrameChromeOptions,
 ): Promise<Buffer> {
-  const templatePath = join(FRAMES_DIR, `${options.theme}.html`);
+  const templatePath = options.theme === "dark" || options.theme === "light"
+    ? join(FRAMES_DIR, `${options.theme}.html`)
+    : resolve(options.themePath ?? options.theme);
   const template = await readFile(templatePath, "utf8");
   const replacements: Record<string, string> = {
     TITLE: escapeHtml(options.title),
@@ -135,22 +152,67 @@ export async function renderEndCard(
   width: number,
   height: number,
   scale: number,
+  text: EndCardText = {},
 ): Promise<Buffer> {
   const template = await readFile(join(FRAMES_DIR, "endcard.html"), "utf8");
+  const defaultTitle = "Recorded with diorama<span class=\"dot\">.</span>";
+  const defaultSubtitle = "open-source extension demos &middot; by <b>Adlicio</b>";
   const html = template
     .replaceAll("{{WIDTH}}", String(width))
-    .replaceAll("{{HEIGHT}}", String(height));
+    .replaceAll("{{HEIGHT}}", String(height))
+    .replaceAll("{{TITLE}}", text.title === undefined ? defaultTitle : escapeHtml(text.title))
+    .replaceAll(
+      "{{SUBTITLE}}",
+      text.subtitle === undefined ? defaultSubtitle : escapeHtml(text.subtitle),
+    );
   return renderHtmlScreenshot(html, width, height, scale);
 }
 
-export async function renderCursorPng(scale: number): Promise<Buffer> {
+export function cursorHotspotOffset(options: RenderCursorOptions = {}): {
+  x: number;
+  y: number;
+} {
+  const cursorScale = options.scale ?? 1;
+  const pad = options.shadow ? CURSOR_SHADOW_PAD : 0;
+  return {
+    x: pad + CURSOR_HOTSPOT_X * cursorScale,
+    y: pad + CURSOR_HOTSPOT_Y * cursorScale,
+  };
+}
+
+export async function renderCursorPng(
+  deviceScale: number,
+  options: RenderCursorOptions = {},
+): Promise<Buffer> {
+  const cursorScale = options.scale ?? 1;
+  if (!Number.isFinite(cursorScale) || cursorScale <= 0) {
+    throw new Error("Cursor scale must be positive");
+  }
+  const pad = options.shadow ? CURSOR_SHADOW_PAD : 0;
+  const canvasSize = Math.ceil(28 * cursorScale + pad * 2);
   const cursorUrl = pathToFileURL(join(FRAMES_DIR, "cursor.svg")).href;
   const html = `<!doctype html>
 <meta charset="utf-8">
 <style>
-  html, body { width: 28px; height: 28px; margin: 0; overflow: hidden; background: transparent; }
-  img { display: block; width: 21px; height: 28px; }
+  html, body { width: ${canvasSize}px; height: ${canvasSize}px; margin: 0; overflow: hidden; background: transparent; }
+  img {
+    display: block;
+    width: ${21 * cursorScale}px;
+    height: ${28 * cursorScale}px;
+    margin: ${pad}px;
+    ${options.shadow ? "filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45));" : ""}
+  }
 </style>
 <img src="${escapeHtml(cursorUrl)}" alt="">`;
-  return renderHtmlScreenshot(html, 28, 28, scale);
+  return renderHtmlScreenshot(html, canvasSize, canvasSize, deviceScale);
+}
+
+export async function renderRippleFrames(scale: number): Promise<Buffer[]> {
+  const template = await readFile(join(FRAMES_DIR, "ripple.html"), "utf8");
+  const frames: Buffer[] = [];
+  for (let index = 0; index < 12; index += 1) {
+    const html = template.replaceAll("{{P}}", String(index / 11));
+    frames.push(await renderHtmlScreenshot(html, 64, 64, scale));
+  }
+  return frames;
 }

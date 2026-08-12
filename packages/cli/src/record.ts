@@ -197,18 +197,30 @@ export async function recordDemo(
     skipped = capture.skipped ?? {};
     writeEventLog(result, join(runDir, "events.json"));
     const configuredEndCard = options.endCard ?? sheet.output.endCard;
+    const themePath = sheet.frame.theme === "dark" || sheet.frame.theme === "light"
+      ? undefined
+      : resolve(sheetDir, sheet.frame.theme);
     rendered = await renderDemo({
       runDir,
       sheet: {
         title: sheet.title,
+        frame: {
+          ...sheet.frame,
+          ...(themePath === undefined ? {} : { themePath }),
+        },
+        cursor: sheet.cursor,
         viewport: sheet.viewport,
         extension: { popup: sheet.extension.popup },
+        output: {
+          posterAt: sheet.output.posterAt,
+          formats: sheet.output.formats,
+        },
       },
       iconPath,
       outPath,
       posterPath,
       fps,
-      endCard: typeof configuredEndCard === "boolean" ? configuredEndCard : true,
+      endCard: configuredEndCard,
     });
   } finally {
     if (loop && !loopStopped) {
@@ -283,6 +295,9 @@ export async function recordCommand(
   const log = options.log ?? console.log;
   log(`mp4: ${rendered.mp4Path}`);
   log(`poster: ${rendered.posterPath}`);
+  for (const format of rendered.formats) {
+    log(`format ${format.name}: ${format.path}`);
+  }
   log(`duration: ${(rendered.durationMs / 1_000).toFixed(2)}s`);
   return {
     ...rendered,

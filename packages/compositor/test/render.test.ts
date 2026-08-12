@@ -97,7 +97,24 @@ describe.skipIf(!integrationEnabled)("compositor integration", () => {
       await writeFile(join(runDir, "events.json"), JSON.stringify({
         startedAt,
         events: [
-          { verb: "openPopup", target: "popup", tStartMs: 200, tEndMs: 300 },
+          {
+            verb: "openPopup",
+            target: "popup",
+            tStartMs: 200,
+            tEndMs: 300,
+            width: 60,
+            height: 40,
+            position: "right",
+          },
+          {
+            verb: "camera",
+            target: "popup",
+            tStartMs: 320,
+            tEndMs: 620,
+            zoom: 1.4,
+            focus: "popup",
+            ms: 300,
+          },
           { verb: "click", target: "popup", tStartMs: 450, tEndMs: 470, x: 20, y: 15 },
           { verb: "mark", target: "none", tStartMs: 700, tEndMs: 700, name: "poster" },
         ],
@@ -107,6 +124,7 @@ describe.skipIf(!integrationEnabled)("compositor integration", () => {
         runDir,
         sheet: {
           title: "Synthetic compositor run",
+          cursor: { scale: 1, ripple: true, shadow: true },
           viewport: { width: 160, height: 90, scale: 1 },
           extension: { popup: { width: 60, height: 40 } },
         },
@@ -114,6 +132,7 @@ describe.skipIf(!integrationEnabled)("compositor integration", () => {
         outPath,
         posterPath,
         fps: 20,
+        endCard: false,
       });
 
       expect((await stat(rendered.mp4Path)).size).toBeGreaterThan(0);

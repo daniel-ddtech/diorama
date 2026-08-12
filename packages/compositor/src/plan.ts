@@ -9,6 +9,12 @@ export interface CompositorEvent {
   y?: number;
   name?: string;
   url?: string;
+  zoom?: number;
+  focus?: "page" | "popup" | "none";
+  ms?: number;
+  width?: number;
+  height?: number;
+  position?: "right" | "left";
 }
 
 export interface PopupWindow {
@@ -36,6 +42,35 @@ export interface CursorPathOptions {
   stageOrigin?: Point;
 }
 
+export interface CameraTrackOptions {
+  width: number;
+  height: number;
+  toolbarH: number;
+  popupOrigin: Point;
+  popupSize: {
+    width: number;
+    height: number;
+  };
+}
+
+export interface CameraSegment {
+  t0: number;
+  t1: number;
+  zoom0: number;
+  zoom1: number;
+  focusX0: number;
+  focusY0: number;
+  focusX1: number;
+  focusY1: number;
+}
+
+export interface RippleOverlay {
+  framesPath: string;
+  tStartMs: number;
+  x: number;
+  y: number;
+}
+
 export interface PopupOverlay extends PopupWindow {
   x: number;
   y: number;
@@ -48,6 +83,8 @@ export interface FfmpegPlan {
   cursorPath: string;
   popup?: PopupOverlay;
   cursorSegments: CursorSegment[];
+  cameraSegments?: CameraSegment[];
+  ripples?: RippleOverlay[];
   width: number;
   height: number;
   stageY?: number;
@@ -174,6 +211,64 @@ export function cursorPath(
   return segments;
 }
 
+/** Build eased camera zoom/focus segments in normalized output coordinates. */
+export function cameraTrack(
+  events: CompositorEvent[],
+  options: CameraTrackOptions,
+): CameraSegment[] {
+  const outputHeight = options.height + options.toolbarH;
+  if (![options.width, options.height, outputHeight].every(
+    (value) => Number.isFinite(value) && value > 0,
+  )) {
+    throw new Error("Camera track dimensions must be positive");
+  }
+
+  let zoom = 1;
+  let focusX = 0.5;
+  let focusY = 0.5;
+  const segments: CameraSegment[] = [];
+  for (const event of events) {
+    if (event.verb !== "camera" || !Number.isFinite(event.zoom)) continue;
+
+    const nextZoom = Math.min(2.5, Math.max(1, event.zoom!));
+    let nextFocusX = focusX;
+    let nextFocusY = focusY;
+    if (event.focus === "page") {
+      nextFocusX = 0.5;
+      nextFocusY = (options.toolbarH + options.height / 2) / outputHeight;
+    } else if (event.focus === "popup") {
+      nextFocusX = (options.popupOrigin.x + options.popupSize.width / 2)
+        / options.width;
+      nextFocusY = (options.popupOrigin.y + options.popupSize.height / 2)
+        / outputHeight;
+    }
+
+    const durationMs = Number.isFinite(event.ms)
+      ? Math.max(0, event.ms!)
+      : Math.max(0, event.tEndMs - event.tStartMs);
+    for (let part = 0; part < 3; part += 1) {
+      const u0 = part / 3;
+      const u1 = (part + 1) / 3;
+      const eased0 = cubicEaseInOut(u0);
+      const eased1 = cubicEaseInOut(u1);
+      segments.push({
+        t0: event.tStartMs + durationMs * u0,
+        t1: event.tStartMs + durationMs * u1,
+        zoom0: zoom + (nextZoom - zoom) * eased0,
+        zoom1: zoom + (nextZoom - zoom) * eased1,
+        focusX0: focusX + (nextFocusX - focusX) * eased0,
+        focusY0: focusY + (nextFocusY - focusY) * eased0,
+        focusX1: focusX + (nextFocusX - focusX) * eased1,
+        focusY1: focusY + (nextFocusY - focusY) * eased1,
+      });
+    }
+    zoom = nextZoom;
+    focusX = nextFocusX;
+    focusY = nextFocusY;
+  }
+  return segments;
+}
+
 function ffconcatQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
@@ -248,6 +343,35 @@ function cursorExpression(
   return `if(lt(t,${decimal(first.t0 / 1_000)}),${decimal(first[startKey])},${expression})`;
 }
 
+function cameraLinearExpression(
+  segment: CameraSegment,
+  startKey: "zoom0" | "focusX0" | "focusY0",
+  endKey: "zoom1" | "focusX1" | "focusY1",
+): string {
+  const t0 = segment.t0 / 1_000;
+  const t1 = segment.t1 / 1_000;
+  const start = segment[startKey];
+  const end = segment[endKey];
+  if (t1 <= t0 || start === end) return decimal(end);
+  return `${decimal(start)}+(${decimal(end - start)})*(t-${decimal(t0)})/${decimal(t1 - t0)}`;
+}
+
+function cameraExpression(
+  segments: CameraSegment[],
+  startKey: "zoom0" | "focusX0" | "focusY0",
+  endKey: "zoom1" | "focusX1" | "focusY1",
+): string {
+  if (segments.length === 0) {
+    return startKey === "zoom0" ? "1" : "0.5";
+  }
+  let expression = decimal(segments[segments.length - 1]![endKey]);
+  for (let index = segments.length - 1; index >= 0; index -= 1) {
+    const segment = segments[index]!;
+    expression = `if(lt(t,${decimal(segment.t0 / 1_000)}),${decimal(segment[startKey])},if(lt(t,${decimal(segment.t1 / 1_000)}),${cameraLinearExpression(segment, startKey, endKey)},${expression}))`;
+  }
+  return expression;
+}
+
 /** Assemble argv for a stage-led, finite FFmpeg filter graph. */
 export function ffmpegArgs(plan: FfmpegPlan): string[] {
   const stageY = plan.stageY ?? 0;
@@ -258,6 +382,8 @@ export function ffmpegArgs(plan: FfmpegPlan): string[] {
   }
   const cursorX = cursorExpression(plan.cursorSegments, "x0", "x1");
   const cursorY = cursorExpression(plan.cursorSegments, "y0", "y1");
+  const cameraSegments = plan.cameraSegments ?? [];
+  const ripples = plan.ripples ?? [];
   const filter = [
     `[1:v]fps=${decimal(plan.fps)},scale=${plan.width}:${contentHeight}:flags=lanczos,pad=${plan.width}:${plan.height}:0:${stageY}:color=0x0c0c0f[base]`,
     "[0:v]format=rgba[chrome]",
@@ -277,10 +403,33 @@ export function ffmpegArgs(plan: FfmpegPlan): string[] {
     cursorInput = 3;
     cursorBase = "withpopup";
   }
+  let cursorOverlayBase = cursorBase;
+  for (const [rippleIndex, ripple] of ripples.entries()) {
+    const inputIndex = cursorInput + 1 + rippleIndex;
+    const start = decimal(ripple.tStartMs / 1_000);
+    const end = decimal(ripple.tStartMs / 1_000 + 0.5);
+    const rippleLabel = `ripple${rippleIndex}`;
+    const outputLabel = `withripple${rippleIndex}`;
+    filter.push(
+      `[${inputIndex}:v]format=rgba,setpts=PTS+${start}/TB[${rippleLabel}]`,
+      `[${cursorOverlayBase}][${rippleLabel}]overlay=${decimal(ripple.x)}:${decimal(ripple.y)}:enable='between(t,${start},${end})':eof_action=pass:shortest=0[${outputLabel}]`,
+    );
+    cursorOverlayBase = outputLabel;
+  }
+
+  const cursorOutput = cameraSegments.length > 0 ? "withcursor" : "out";
   filter.push(
     `[${cursorInput}:v]format=rgba[cursor]`,
-    `[${cursorBase}][cursor]overlay=x='${cursorX}':y='${cursorY}':eval=frame:eof_action=repeat:shortest=0[out]`,
+    `[${cursorOverlayBase}][cursor]overlay=x='${cursorX}':y='${cursorY}':eval=frame:eof_action=repeat:shortest=0[${cursorOutput}]`,
   );
+  if (cameraSegments.length > 0) {
+    const zoom = cameraExpression(cameraSegments, "zoom0", "zoom1");
+    const focusX = cameraExpression(cameraSegments, "focusX0", "focusX1");
+    const focusY = cameraExpression(cameraSegments, "focusY0", "focusY1");
+    filter.push(
+      `[withcursor]crop=w='iw/(${zoom})':h='ih/(${zoom})':x='clip((${focusX})*iw-iw/(2*(${zoom})),0,iw-iw/(${zoom}))':y='clip((${focusY})*ih-ih/(2*(${zoom})),0,ih-ih/(${zoom}))',scale=${plan.width}:${plan.height}:flags=lanczos,setsar=1[out]`,
+    );
+  }
 
   if (!(plan.durationMs > 0)) throw new Error("FfmpegPlan.durationMs must be positive");
   return [
@@ -291,6 +440,12 @@ export function ffmpegArgs(plan: FfmpegPlan): string[] {
       ? []
       : ["-f", "concat", "-safe", "0", "-i", plan.popupConcatPath]),
     "-loop", "1", "-i", plan.cursorPath,
+    ...ripples.flatMap((ripple) => [
+      "-stream_loop", "0",
+      "-framerate", "24",
+      "-start_number", "0",
+      "-i", ripple.framesPath,
+    ]),
     "-filter_complex", filter.join(";"),
     "-map", "[out]",
     "-an",
