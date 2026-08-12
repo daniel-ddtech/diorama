@@ -77,7 +77,7 @@ function stageProbeSubstring(sheet: BeatSheet, lastGotoUrl: string): string {
   }
 }
 
-async function dispatchClick(
+export async function dispatchClick(
   engine: Engine,
   session: string,
   point: ResolvedSelector,
@@ -101,7 +101,7 @@ async function dispatchClick(
   }, session);
 }
 
-async function requireSelector(
+export async function requireSelector(
   engine: Engine,
   session: string,
   selector: string,
@@ -109,6 +109,21 @@ async function requireSelector(
   const point = await resolveSelector(engine.cdp, session, selector);
   if (!point.found) throw new Error(`Selector not found: ${JSON.stringify(selector)}`);
   return point;
+}
+
+export async function dispatchText(
+  engine: Engine,
+  session: string,
+  text: string,
+  perCharMs: number,
+): Promise<void> {
+  const characters = [...text];
+  for (const [characterIndex, character] of characters.entries()) {
+    await engine.cdp.send("Input.insertText", { text: character }, session);
+    if (characterIndex < characters.length - 1 && perCharMs > 0) {
+      await delay(perCharMs);
+    }
+  }
 }
 
 async function waitForSelector(
@@ -222,13 +237,7 @@ export async function runBeats(
         const session = sessionFor(step.target);
         const point = await requireSelector(engine, session, step.selector);
         await dispatchClick(engine, session, point);
-        const characters = [...step.text];
-        for (const [characterIndex, character] of characters.entries()) {
-          await engine.cdp.send("Input.insertText", { text: character }, session);
-          if (characterIndex < characters.length - 1 && step.perCharMs > 0) {
-            await delay(step.perCharMs);
-          }
-        }
+        await dispatchText(engine, session, step.text, step.perCharMs);
         details.selector = step.selector;
         details.x = point.x;
         details.y = point.y;

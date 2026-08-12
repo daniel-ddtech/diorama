@@ -15,9 +15,19 @@ export interface RecordCommandOptions {
   log?: (message: string) => void;
 }
 
-export interface RecordCommandResult extends RenderDemoResult {
+export interface RecordDemoOptions {
+  sheetPath: string;
+  outDir?: string;
+  fps?: number;
+  keepRun?: boolean;
+}
+
+export interface RecordDemoResult extends RenderDemoResult {
+  skipped: Record<string, number>;
   runDir?: string;
 }
+
+export type RecordCommandResult = RecordDemoResult;
 
 interface ExtensionManifest {
   name: string;
@@ -79,36 +89,22 @@ async function loadExtensionManifest(
   };
 }
 
-export async function recordCommand(
-  args: string[],
-  options: RecordCommandOptions = {},
-): Promise<RecordCommandResult> {
-  const { values, positionals } = parseArgs({
-    args,
-    allowPositionals: true,
-    strict: true,
-    options: {
-      out: { type: "string" },
-      fps: { type: "string" },
-      "keep-run": { type: "boolean", default: false },
-    },
-  });
-  if (positionals.length !== 1) {
-    throw new Error("record requires exactly one beat sheet path");
-  }
-  const sheetPath = resolve(positionals[0]!);
+export async function recordDemo(
+  options: RecordDemoOptions,
+): Promise<RecordDemoResult> {
+  const sheetPath = resolve(options.sheetPath);
   if (!existsSync(sheetPath)) {
     throw new Error(`Beat sheet not found: ${sheetPath}`);
   }
-  const fps = values.fps === undefined ? 30 : Number(values.fps);
+  const fps = options.fps ?? 30;
   if (!Number.isInteger(fps) || fps <= 0) {
-    throw new Error("--fps must be a positive integer");
+    throw new Error("fps must be a positive integer");
   }
 
   const sheet = loadBeatSheet(sheetPath);
   const extensionDir = resolve(dirname(sheetPath), sheet.extension.path);
   const { manifest, iconPath } = await loadExtensionManifest(extensionDir);
-  const outputDir = resolve(values.out ?? "diorama-out");
+  const outputDir = resolve(options.outDir ?? "diorama-out");
   const slug = titleSlug(sheet.title);
   const outPath = join(outputDir, `${slug}.mp4`);
   const posterPath = join(outputDir, `${slug}-poster.jpg`);
@@ -120,12 +116,13 @@ export async function recordCommand(
     await rm(profileDir, { recursive: true, force: true });
     throw error;
   }
-  const keepRun = values["keep-run"];
+  const keepRun = options.keepRun ?? false;
 
   let engine: Engine | undefined;
   let loop: CaptureLoop | undefined;
   let loopStopped = false;
   let rendered: RenderDemoResult | undefined;
+  let skipped: Record<string, number> = {};
   try {
     engine = await Engine.launch({ extensionDir, userDataDir: profileDir });
     const extension = await engine.findExtension(
@@ -146,8 +143,9 @@ export async function recordCommand(
       },
     });
     if (!loop) throw new Error("The beat sheet did not create a stage to capture");
-    await loop.stop();
+    const capture = await loop.stop();
     loopStopped = true;
+    skipped = capture.skipped ?? {};
     writeEventLog(result, join(runDir, "events.json"));
     rendered = await renderDemo({
       runDir,
@@ -180,12 +178,46 @@ export async function recordCommand(
   }
 
   if (!rendered) throw new Error("Recording did not produce output");
+  return {
+    ...rendered,
+    skipped,
+    ...(keepRun ? { runDir } : {}),
+  };
+}
+
+export async function recordCommand(
+  args: string[],
+  options: RecordCommandOptions = {},
+): Promise<RecordCommandResult> {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    strict: true,
+    options: {
+      out: { type: "string" },
+      fps: { type: "string" },
+      "keep-run": { type: "boolean", default: false },
+    },
+  });
+  if (positionals.length !== 1) {
+    throw new Error("record requires exactly one beat sheet path");
+  }
+  const fps = values.fps === undefined ? 30 : Number(values.fps);
+  if (!Number.isInteger(fps) || fps <= 0) {
+    throw new Error("--fps must be a positive integer");
+  }
+
+  const rendered = await recordDemo({
+    sheetPath: positionals[0]!,
+    ...(values.out === undefined ? {} : { outDir: values.out }),
+    fps,
+    keepRun: values["keep-run"],
+  });
   const log = options.log ?? console.log;
   log(`mp4: ${rendered.mp4Path}`);
   log(`poster: ${rendered.posterPath}`);
   log(`duration: ${(rendered.durationMs / 1_000).toFixed(2)}s`);
   return {
     ...rendered,
-    ...(keepRun ? { runDir } : {}),
   };
 }

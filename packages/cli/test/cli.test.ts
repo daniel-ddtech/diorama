@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   initCommand,
+  main,
   recordCommand,
   runDoctorChecks,
 } from "../src/index.js";
@@ -50,5 +51,18 @@ describe("recordCommand", () => {
     await expect(recordCommand([
       join(tmpdir(), "definitely-missing-diorama-sheet.yaml"),
     ], { log: () => {} })).rejects.toThrow(/Beat sheet not found:/);
+  });
+});
+
+describe("mcp command", () => {
+  it("points to the standalone server without introducing a package cycle", async () => {
+    const messages: string[] = [];
+    await expect(main(["mcp"], {
+      log: (message) => messages.push(message),
+      error: (message) => messages.push(message),
+    })).resolves.toBe(0);
+    expect(messages).toEqual([
+      "Run the Diorama MCP stdio server with: diorama-mcp",
+    ]);
   });
 });

@@ -13,6 +13,7 @@ Commands:
   init [dir]                         Write a starter demo.beats.yaml
   record <sheet.yaml> [options]      Record and render a demo
   doctor                             Check Chrome, ffmpeg, ffprobe, and Node
+  mcp                                Show how to start the standalone MCP server
 
 Record options:
   --out <dir>                        Output directory (default: ./diorama-out)
@@ -57,6 +58,10 @@ export async function main(
         return 0;
       case "doctor":
         return doctorCommand(commandArgs, { log: io.log });
+      case "mcp":
+        if (commandArgs.length > 0) throw new Error("mcp does not accept arguments");
+        io.log("Run the Diorama MCP stdio server with: diorama-mcp");
+        return 0;
       default:
         io.log(HELP);
         return 2;
