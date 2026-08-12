@@ -3,3 +3,5 @@ spike/out/
 spike/profile*/
 spike/tmp-ext-icon.png
 spike/debug*.mjs
+node_modules/
+packages/*/dist/
