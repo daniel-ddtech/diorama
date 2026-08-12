@@ -83,7 +83,7 @@ steps:
 | `scroll` | `deltaY`, `steps`, `stepMs`, `target` | stepped wheel events |
 | `hover` | `selector`, `target` | mouse move only |
 | `openPopup` / `closePopup` | | opens the real popup with the tabs.query patch |
-| `camera` | `zoom`, `focus`, `ms` | recorded for the compositor (zoom/pan planned) |
+| `camera` | `zoom`, `focus`, `ms` | eased zoom/pan rendered into the video |
 | `hold` | `ms` | let a state breathe |
 | `mark` | `name` | names a beat; the last mark becomes the poster frame |
 
@@ -168,5 +168,4 @@ DIORAMA_IT=1 npx vitest run    # plus live integrations (launches Chrome, runs f
 v0.1.0, MIT. Working end to end and used in production for our own extension
 demo. Built by [Adlicio](https://tryadlicio.com) and maintained as we use it:
 issues and PRs are welcome, response times are not guaranteed. On the list:
-camera zoom/pan rendering, profile seeding for logged-in sessions, side panel
-and DevTools panel surfaces, a CI recipe.
+a local studio UI, side panel and DevTools panel surfaces, a CI recipe.
