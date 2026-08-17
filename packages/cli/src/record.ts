@@ -209,7 +209,7 @@ export async function recordDemo(
         onStageReady: (stage) => {
           loop = engine!.startCaptureLoop(
             [{ name: "stage", session: stage.session }],
-            { outDir: runDir, intervalMs: 80 },
+            { outDir: runDir, intervalMs: 33 },
           );
         },
         onPopupOpened: (popup) => {

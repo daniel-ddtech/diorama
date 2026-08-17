@@ -55,6 +55,7 @@ export interface OpenExtensionPageOptions extends ViewportOptions {
 export interface ScreenshotOptions {
   format: "jpeg" | "png" | "webp";
   quality?: number;
+  optimizeForSpeed?: boolean;
 }
 
 export interface CaptureEntry {
@@ -246,6 +247,7 @@ export class Engine {
   async screenshot(session: string, options: ScreenshotOptions): Promise<Buffer> {
     const params: Record<string, unknown> = { format: options.format };
     if (options.quality !== undefined) params.quality = options.quality;
+    if (options.optimizeForSpeed !== undefined) params.optimizeForSpeed = options.optimizeForSpeed;
     const result = await this.cdp.send<CaptureScreenshotResult>(
       "Page.captureScreenshot",
       params,
@@ -272,7 +274,19 @@ export class Engine {
         await Promise.all(states.map(async (state) => {
           const index = state.times.length;
           try {
-            const image = await this.screenshot(state.session, { format: "jpeg", quality: 85 });
+            // captureScreenshot can hang for seconds mid-navigation instead of
+            // failing; racing it keeps one stuck tick from stalling the loop.
+            const shot = this.screenshot(
+              state.session,
+              { format: "jpeg", quality: 85, optimizeForSpeed: true },
+            );
+            shot.catch(() => undefined);
+            const image = await Promise.race([
+              shot,
+              new Promise<never>((_, reject) => {
+                setTimeout(() => reject(new Error("capture tick timeout")), 400);
+              }),
+            ]);
             writeFileSync(
               join(options.outDir, state.name, `${String(index).padStart(5, "0")}.jpg`),
               image,
@@ -282,7 +296,11 @@ export class Engine {
             skipped.set(state.name, (skipped.get(state.name) ?? 0) + 1);
           }
         }));
-        if (running) await delay(options.intervalMs);
+        // intervalMs is the target cadence: the capture itself already spent
+        // part of the tick, so only sleep the remainder or the effective rate
+        // halves on heavy pages.
+        const remaining = options.intervalMs - (Date.now() - timestamp);
+        if (running && remaining > 0) await delay(remaining);
       }
     })();
 
